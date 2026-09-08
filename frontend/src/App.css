@@ -1,0 +1,87 @@
+.app {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+.chat-window {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border: 1px solid #d9d3c4;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.chat-header {
+  background: #254d40;
+  color: #fff;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pdf-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.4);
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pdf-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.chat-body {
+  padding: 16px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.empty-state { color: #6b7a75; font-size: 14px; }
+.bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.bubble.user {
+  align-self: flex-end;
+  background: #dfe9e3;
+  color: #254d40;
+}
+.bubble.assistant {
+  align-self: flex-start;
+  background: #f6f4ee;
+  border: 1px solid #d9d3c4;
+}
+.chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 14px;
+  border-top: 1px solid #d9d3c4;
+}
+.chat-input input {
+  flex: 1;
+  border: 1px solid #d9d3c4;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.chat-input button {
+  background: #254d40;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.disclaimer {
+  text-align: center;
+  font-size: 11px;
+  color: #6b7a75;
+  padding: 0 16px 14px;
+  margin: 0;
+}
