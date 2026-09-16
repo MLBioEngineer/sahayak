@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: sahayak-backend
+    env: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: OLLAMA_MODEL
+        value: llama3.2:3b
+      - key: ALLOWED_ORIGINS
+        value: "*"
