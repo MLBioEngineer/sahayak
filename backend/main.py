@@ -47,6 +47,22 @@ app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(pdf.router, prefix="/export-pdf", tags=["pdf"])
 
 
+@app.get("/")
+def root():
+    """Root route providing API status and documentation links."""
+    return {
+        "name": "সহায়ক (Sahayak) Medical AI API",
+        "status": "online",
+        "endpoints": {
+            "health": "/health",
+            "chat": "/chat",
+            "docs": "/docs",
+            "pdf_export": "/export-pdf"
+        },
+        "disclaimer": "⚠️ এটি পেশাদার চিকিৎসা পরামর্শের বিকল্প নয়।"
+    }
+
+
 @app.get("/health")
 def health():
     """Simple check to confirm the API is alive."""
