@@ -56,3 +56,35 @@ export async function downloadChatPdf(
   a.remove();
   window.URL.revokeObjectURL(url);
 }
+
+export async function getEcgBenchmark(patientType = "apnea") {
+  const res = await fetch(`${API_BASE}/api/ecg/benchmark/${patientType}`);
+  if (!res.ok) {
+    throw new Error("Benchmark fetch failed");
+  }
+  return await res.json();
+}
+
+export async function predictEcg(ecgSignal) {
+  const res = await fetch(`${API_BASE}/api/ecg/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ecg_signal: ecgSignal }),
+  });
+  if (!res.ok) {
+    throw new Error("ECG prediction failed");
+  }
+  return await res.json();
+}
+
+export async function analyzeEcgSession(epochs, patientId = "Anonymous") {
+  const res = await fetch(`${API_BASE}/api/ecg/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ epochs, patient_id: patientId }),
+  });
+  if (!res.ok) {
+    throw new Error("Session analysis failed");
+  }
+  return await res.json();
+}

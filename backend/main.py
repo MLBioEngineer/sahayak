@@ -12,7 +12,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from routers import chat, pdf
+from routers import chat, pdf, ecg
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 app = FastAPI(title="Sahayak API", version="0.1.0")
@@ -45,6 +45,7 @@ app.add_middleware(
 
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(pdf.router, prefix="/export-pdf", tags=["pdf"])
+app.include_router(ecg.router, prefix="/api/ecg", tags=["ecg"])
 
 
 @app.get("/")

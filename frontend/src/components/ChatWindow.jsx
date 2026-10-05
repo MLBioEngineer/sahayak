@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { sendMessage, downloadChatPdf } from "../api/client";
 
-export default function ChatWindow() {
+export default function ChatWindow({ initialMessage = "" }) {
   const [history, setHistory] = useState([]); // { role, content }
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialMessage);
   const [loading, setLoading] = useState(false);
+
+  // Sync initialMessage when triggered from ECG report
+  useState(() => {
+    if (initialMessage) {
+      setInput(initialMessage);
+    }
+  }, [initialMessage]);
 
   async function handleSend() {
     if (!input.trim()) return;

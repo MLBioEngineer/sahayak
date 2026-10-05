@@ -1,8 +1,52 @@
 .app {
   display: flex;
-  justify-content: center;
-  padding: 24px;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px;
+  min-height: 100vh;
+  background-color: #f7f9f8;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* Tab Navigation */
+.tab-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  background: #e6ede9;
+  padding: 5px;
+  border-radius: 12px;
+  max-width: 560px;
+  width: 100%;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #4a5c54;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab-btn.tab-active {
+  background: #fff;
+  color: #254d40;
+  box-shadow: 0 2px 6px rgba(37, 77, 64, 0.12);
+}
+
+.main-content {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Chat Window */
 .chat-window {
   width: 100%;
   max-width: 480px;
@@ -12,7 +56,9 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
 }
+
 .chat-header {
   background: #254d40;
   color: #fff;
@@ -21,6 +67,7 @@
   justify-content: space-between;
   align-items: center;
 }
+
 .pdf-btn {
   background: transparent;
   border: 1px solid rgba(255,255,255,0.4);
@@ -31,19 +78,23 @@
   cursor: pointer;
 }
 .pdf-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 .chat-body {
   padding: 16px;
-  min-height: 320px;
+  min-height: 340px;
+  max-height: 480px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.empty-state { color: #6b7a75; font-size: 14px; }
+.empty-state { color: #6b7a75; font-size: 14px; text-align: center; margin-top: 40px; }
+
 .bubble {
-  max-width: 80%;
+  max-width: 82%;
   padding: 10px 14px;
   border-radius: 14px;
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.5;
 }
 .bubble.user {
@@ -55,12 +106,15 @@
   align-self: flex-start;
   background: #f6f4ee;
   border: 1px solid #d9d3c4;
+  color: #1e2d27;
 }
+
 .chat-input {
   display: flex;
   gap: 8px;
   padding: 14px;
   border-top: 1px solid #d9d3c4;
+  background: #fff;
 }
 .chat-input input {
   flex: 1;
@@ -68,6 +122,10 @@
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;
+  outline: none;
+}
+.chat-input input:focus {
+  border-color: #254d40;
 }
 .chat-input button {
   background: #254d40;
@@ -78,10 +136,160 @@
   font-weight: 600;
   cursor: pointer;
 }
+.chat-input button:hover { background: #1c3c32; }
+
 .disclaimer {
   text-align: center;
   font-size: 11px;
   color: #6b7a75;
   padding: 0 16px 14px;
   margin: 0;
+}
+
+/* ECG Sleep Apnea Monitor Card */
+.ecg-monitor-card {
+  width: 100%;
+  max-width: 680px;
+  background: #fff;
+  border: 1px solid #d4ddd7;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.ecg-header h3 {
+  margin: 0 0 4px 0;
+  color: #1e3b31;
+  font-size: 18px;
+}
+.ecg-header .subtitle {
+  margin: 0 0 16px 0;
+  color: #61736a;
+  font-size: 12.5px;
+}
+
+.ecg-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.btn-test {
+  padding: 8px 12px;
+  border: 1px solid #c9d6ce;
+  background: #f7faf8;
+  color: #2d453b;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-test:hover { background: #e9f0ec; }
+.btn-test.active-apnea {
+  background: #fff1f0;
+  border-color: #ffa39e;
+  color: #cf1322;
+}
+.btn-test.active-normal {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #389e0d;
+}
+
+.btn-upload {
+  padding: 8px 12px;
+  border: 1px dashed #9cb5a8;
+  background: #fff;
+  color: #3f594d;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.btn-upload:hover { background: #f2f7f4; }
+
+/* Canvas Styling */
+.canvas-wrapper {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+  margin-bottom: 16px;
+}
+.ecg-canvas {
+  display: block;
+  width: 100%;
+  height: 220px;
+}
+.canvas-overlay {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: #8fb9a8;
+  font-family: monospace;
+}
+
+/* Prediction Result Card */
+.prediction-card {
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e1e8e4;
+}
+.prediction-card.risk-high {
+  background: #fff7f7;
+  border-color: #ffd4d4;
+}
+.prediction-card.risk-safe {
+  background: #f7fdf9;
+  border-color: #d1f2dd;
+}
+
+.prediction-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.status-badge {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.risk-high .status-badge { color: #cf1322; }
+.risk-safe .status-badge { color: #237804; }
+
+.confidence-pill {
+  font-size: 12px;
+  background: rgba(0,0,0,0.06);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.prediction-details {
+  font-size: 13.5px;
+  color: #3b4e45;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.btn-discuss {
+  width: 100%;
+  background: #254d40;
+  color: #fff;
+  border: none;
+  padding: 11px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-discuss:hover {
+  background: #1b382f;
 }
