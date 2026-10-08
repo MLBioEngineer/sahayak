@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChatWindow from "./components/ChatWindow";
 import SleepApneaMonitor from "./components/SleepApneaMonitor";
 import AuthScreen from "./components/AuthScreen";
+import { supabase } from "./api/supabase";
 import { Analytics } from "@vercel/analytics/react";
 import "./App.css";
 
@@ -10,10 +11,38 @@ export default function App() {
   const [chatPrompt, setChatPrompt] = useState("");
   const [user, setUser] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  useEffect(() => {
+    // Check active session on initial load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+      }
+      setAuthChecking(false);
+    });
+
+    // Listen for auth changes (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   function handleDiscussWithAi(promptText) {
     setChatPrompt(promptText);
     setActiveTab("chat");
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setUser(null);
+    setIsGuest(false);
+  }
+
+  if (authChecking) {
+    return <div className="app auth-page-bg"><p style={{color: '#fff'}}>Loading...</p></div>;
   }
 
   if (!user && !isGuest) {
@@ -34,7 +63,7 @@ export default function App() {
         <span>{user ? `👤 Logged in as ${user.email}` : "⚠️ Guest Mode - Limited Access"}</span>
         <button 
           className="text-btn" 
-          onClick={() => { setUser(null); setIsGuest(false); }}
+          onClick={user ? handleLogout : () => setIsGuest(false)}
         >
           {user ? "Log out" : "Sign in"}
         </button>

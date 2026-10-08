@@ -1,15 +1,36 @@
 import { useState } from "react";
+import { supabase } from "../api/supabase";
 
 export default function AuthScreen({ onLogin, onGuest }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Connect to Supabase Auth here in the next step
-    // For now, immediately log them in
-    onLogin({ email, id: "user_123" });
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        onLogin(data.user);
+      } else {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.user) {
+          alert("Registration successful! You are now logged in.");
+          onLogin(data.user);
+        }
+      }
+    } catch (err) {
+      setErrorMsg(err.message || "An error occurred during authentication.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -17,6 +38,8 @@ export default function AuthScreen({ onLogin, onGuest }) {
       <div className="auth-box">
         <div className="auth-logo">🫀</div>
         <h2>{isLogin ? "Welcome back" : "Create your account"}</h2>
+        
+        {errorMsg && <div style={{ color: "#ff4d4f", marginBottom: "16px", fontSize: "14px" }}>{errorMsg}</div>}
         
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="input-group">
@@ -37,8 +60,8 @@ export default function AuthScreen({ onLogin, onGuest }) {
               required 
             />
           </div>
-          <button type="submit" className="btn-auth-primary">
-            {isLogin ? "Continue" : "Sign Up"}
+          <button type="submit" className="btn-auth-primary" disabled={loading}>
+            {loading ? "Processing..." : (isLogin ? "Continue" : "Sign Up")}
           </button>
         </form>
 
