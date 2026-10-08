@@ -22,11 +22,17 @@ client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 def get_best_model():
     if GROQ_MODEL: return GROQ_MODEL
     try:
-        models = client.models.list().data
+        models = [m.id for m in client.models.list().data]
+        # Prefer llama 3 70b or 8b, then gemma, then mixtral
+        for preferred in ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "llama3-70b-8192", "llama3-8b-8192", "gemma2-9b-it", "mixtral-8x7b-32768"]:
+            if preferred in models:
+                return preferred
+        
+        # Fallback to any text model
         for m in models:
-            if "whisper" not in m.id and "guard" not in m.id:
-                return m.id
-        return "llama-3.1-8b-instant" # fallback
+            if "whisper" not in m and "guard" not in m:
+                return m
+        return "llama-3.1-8b-instant"
     except:
         return "llama-3.1-8b-instant"
 
