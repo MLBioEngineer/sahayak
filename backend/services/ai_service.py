@@ -13,11 +13,22 @@ logger = logging.getLogger("sahayak.ai_service")
 
 # Configuration from environment variables
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant") # Fast and reliable Groq model
+GROQ_MODEL = os.getenv("GROQ_MODEL", "") 
 TIMEOUT_SECONDS = float(os.getenv("LLM_TIMEOUT_SECONDS", "45.0"))
 
 # Initialize Groq client
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+
+def get_best_model():
+    if GROQ_MODEL: return GROQ_MODEL
+    try:
+        models = client.models.list().data
+        for m in models:
+            if "whisper" not in m.id and "guard" not in m.id:
+                return m.id
+        return "llama-3.1-8b-instant" # fallback
+    except:
+        return "llama-3.1-8b-instant"
 
 # General Bengali Medical System Prompt
 SYSTEM_PROMPT = (
@@ -76,7 +87,7 @@ def get_ai_response(user_message: str, chat_history: list[dict] | None = None) -
     try:
         chat_completion = client.chat.completions.create(
             messages=messages,
-            model=GROQ_MODEL,
+            model=get_best_model(),
             temperature=0.3,
             max_tokens=1024,
             top_p=0.9,
