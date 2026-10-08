@@ -93,4 +93,4 @@ def get_ai_response(user_message: str, chat_history: list[dict] | None = None) -
 
     except Exception as e:
         logger.error(f"Unexpected error communicating with Groq API: {e}")
-        return "দুঃখিত, এআই সার্ভারের সাথে সংযোগে সমস্যা হচ্ছে। একটু পর আবার চেষ্টা করুন।"
+        return f"System Error: {str(e)}"
