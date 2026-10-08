@@ -23,15 +23,20 @@ def get_best_model():
     if GROQ_MODEL: return GROQ_MODEL
     try:
         models = [m.id for m in client.models.list().data]
-        # Prefer llama 3 70b or 8b, then gemma, then mixtral
-        for preferred in ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "llama3-70b-8192", "llama3-8b-8192", "gemma2-9b-it", "mixtral-8x7b-32768"]:
-            if preferred in models:
-                return preferred
         
-        # Fallback to any text model
+        # Prefer ANY Llama, Mixtral, Gemma, Qwen, or GPT text model
         for m in models:
-            if "whisper" not in m and "guard" not in m:
+            m_lower = m.lower()
+            if any(x in m_lower for x in ["llama", "mixtral", "gemma", "qwen", "gpt"]):
+                if "guard" not in m_lower and "vision" not in m_lower and "audio" not in m_lower:
+                    return m
+                    
+        # Fallback to any model that isn't obviously audio or safety guard
+        for m in models:
+            m_lower = m.lower()
+            if "whisper" not in m_lower and "guard" not in m_lower and "orpheus" not in m_lower:
                 return m
+                
         return "llama-3.1-8b-instant"
     except:
         return "llama-3.1-8b-instant"
