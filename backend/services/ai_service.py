@@ -1,19 +1,23 @@
 """
 Sahayak AI Inference Service.
-Connects to a self-hosted Ollama instance.
+Connects to Groq API for lightning-fast 24/7 responses using Llama-3.
 Implements RAG (Retrieval-Augmented Generation) for accurate medical answers.
 """
 import os
 import logging
-import httpx
+import random
+from groq import Groq
 from services.rag_service import retrieve_context
 
 logger = logging.getLogger("sahayak.ai_service")
 
 # Configuration from environment variables
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", os.getenv("MODEL_ENDPOINT", "")).rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile") # Top tier open source model on Groq
 TIMEOUT_SECONDS = float(os.getenv("LLM_TIMEOUT_SECONDS", "45.0"))
+
+# Initialize Groq client
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # General Bengali Medical System Prompt
 SYSTEM_PROMPT = (
@@ -26,10 +30,10 @@ SYSTEM_PROMPT = (
     "৪. যদি ব্যবহারকারীর প্রশ্নের সাথে সম্পর্কিত কোনো 'মেডিকেল রেফারেন্স (Context)' নিচে দেওয়া থাকে, তবে শুধুমাত্র সেই রেফারেন্সের ওপর ভিত্তি করে উত্তর দিন। নিজে থেকে কোনো বানোয়াট তথ্য (Hallucinate) দেবেন না।"
 )
 
-# Resilient Bengali fallback messages when LLM is cold-starting or temporarily unreachable
+# Resilient Bengali fallback messages when API is not configured
 FALLBACK_REPLY = (
-    "দুঃখিত, সহায়ক এআই ইঞ্জিন বর্তমানে কিছুটা ব্যস্ত রয়েছে অথবা মডেলটি চালু হচ্ছে। "
-    "অনুগ্রহ করে এক মিনিট পর আবার বার্তা পাঠান।\n\n"
+    "দুঃখিত, সহায়ক এআই ইঞ্জিন বর্তমানে কনফিগার করা নেই (Groq API Key অনুপস্থিত)। "
+    "অনুগ্রহ করে অ্যাডমিনিস্ট্রেটরকে জানান।\n\n"
     "জরুরি শারীরিক সমস্যা বা মারাত্মক উপসর্গের ক্ষেত্রে অনুগ্রহ করে বিলম্ব না করে নিকটস্থ হাসপাতালে যান "
     "অথবা জাতীয় জরুরি সেবা ৯৯৯ এ যোগাযোগ করুন।"
 )
@@ -43,12 +47,11 @@ DEMO_RESPONSES = [
 
 def get_ai_response(user_message: str, chat_history: list[dict] | None = None) -> str:
     """
-    Generate an AI response using the self-hosted Ollama endpoint.
+    Generate an AI response using the blazingly fast Groq API.
     Retrieves context from local RAG (FAISS) vector store to ground the response.
     """
-    if not OLLAMA_BASE_URL:
-        logger.warning("OLLAMA_BASE_URL is not configured. Returning fallback response.")
-        import random
+    if not client:
+        logger.warning("GROQ_API_KEY is not configured. Returning fallback response.")
         return random.choice(DEMO_RESPONSES)
         
     # Retrieve relevant medical context from RAG
@@ -58,7 +61,7 @@ def get_ai_response(user_message: str, chat_history: list[dict] | None = None) -
     if context:
         dynamic_system_prompt += f"\n\n--- মেডিকেল রেফারেন্স (Context) ---\n{context}\n-----------------------------------"
 
-    # Format messages for Ollama's /api/chat endpoint
+    # Format messages for Groq API
     messages = [{"role": "system", "content": dynamic_system_prompt}]
 
     if chat_history:
@@ -70,34 +73,24 @@ def get_ai_response(user_message: str, chat_history: list[dict] | None = None) -
 
     messages.append({"role": "user", "content": user_message})
 
-    url = f"{OLLAMA_BASE_URL}/api/chat"
-    payload = {
-        "model": OLLAMA_MODEL,
-        "messages": messages,
-        "stream": False,
-        "options": {
-            "temperature": 0.3, # Lower temperature for more factual medical answers
-            "top_p": 0.9,
-        }
-    }
-
     try:
-        with httpx.Client(timeout=TIMEOUT_SECONDS) as client:
-            response = client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            reply = data.get("message", {}).get("content", "").strip()
-            if reply:
-                return reply
-            logger.warning("Empty reply received from Ollama.")
-            return FALLBACK_REPLY
+        chat_completion = client.chat.completions.create(
+            messages=messages,
+            model=GROQ_MODEL,
+            temperature=0.3,
+            max_tokens=1024,
+            top_p=0.9,
+            stream=False,
+            timeout=TIMEOUT_SECONDS
+        )
+        
+        reply = chat_completion.choices[0].message.content.strip()
+        if reply:
+            return reply
+            
+        logger.warning("Empty reply received from Groq.")
+        return FALLBACK_REPLY
 
-    except httpx.ConnectError:
-        logger.error(f"Cannot connect to Ollama endpoint at {url}. Service may be waking up or offline.")
-        return FALLBACK_REPLY
-    except httpx.TimeoutException:
-        logger.error(f"Ollama request timed out after {TIMEOUT_SECONDS} seconds.")
-        return FALLBACK_REPLY
     except Exception as e:
-        logger.error(f"Unexpected error communicating with Ollama: {e}")
-        return FALLBACK_REPLY
+        logger.error(f"Unexpected error communicating with Groq API: {e}")
+        return "দুঃখিত, এআই সার্ভারের সাথে সংযোগে সমস্যা হচ্ছে। একটু পর আবার চেষ্টা করুন।"
