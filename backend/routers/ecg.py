@@ -40,14 +40,18 @@ def get_benchmark(patient_type: str = "apnea"):
     Patient types: 'apnea' (Severe Apnea sample) or 'normal' (Healthy control).
     Used for hardware testing and web demonstration without real human subjects.
     """
-    signal = generate_benchmark_signal(patient_type)
-    prediction = predict_epoch(signal)
+    signals = generate_benchmark_signal(patient_type)
+    ecg_sig = signals["ecg_signal"]
+    edr_sig = signals["edr_signal"]
+    
+    prediction = predict_epoch(ecg_sig)
     return {
         "patient_type": patient_type,
         "sample_rate_hz": 100,
         "duration_seconds": 30,
-        "samples_count": len(signal),
-        "ecg_signal": signal,
+        "samples_count": len(ecg_sig),
+        "ecg_signal": ecg_sig,
+        "edr_signal": edr_sig,
         "ground_truth": "Apnea" if patient_type == "apnea" else "Normal",
         "model_prediction": prediction
     }

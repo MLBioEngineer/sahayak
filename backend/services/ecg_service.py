@@ -250,12 +250,15 @@ def analyze_session(epochs_list: list[list[float]]) -> dict:
     }
 
 
-def generate_benchmark_signal(patient_type: str = "apnea") -> list[float]:
+def generate_benchmark_signal(patient_type: str = "apnea") -> dict:
     """
     Generates a realistic 30-second benchmark ECG waveform (3000 points @ 100 Hz)
     mimicking PhysioNet Apnea-ECG patterns for live hardware testing without real human subjects.
+    Returns both ecg_signal and edr_signal (ECG-Derived Respiration).
     """
     t = np.linspace(0, 30, 3000)
+    edr = np.zeros(3000)
+    
     # Base heart rate: ~75 bpm for normal (1.25 Hz), irregular modulated for apnea
     if patient_type.lower() == "apnea":
         # Bradycardia-tachycardia cycle characteristic of sleep apnea
@@ -266,13 +269,28 @@ def generate_benchmark_signal(patient_type: str = "apnea") -> list[float]:
             amp = 1.2 if (i < 1200 or i > 2200) else 0.5  # Hypopnea drop
             if i + 5 < 3000:
                 ecg[i:i+5] += amp * np.array([0.2, 0.8, 1.8, 0.6, -0.3])
+            # EDR follows respiration (amplitude reduction during apnea/hypopnea)
+            edr_val = 0.5 + 0.5 * (amp / 1.2)
+            idx_start = max(0, i - 42)
+            idx_end = min(3000, i + 43)
+            edr[idx_start:idx_end] = edr_val
+            
+        # Add some respiratory noise
+        edr = edr + 0.1 * np.sin(2 * np.pi * 0.2 * t)
     else:
         # Healthy regular sinus rhythm
         ecg = np.sin(2 * np.pi * 1.25 * t) * 0.3
         for i in range(0, 3000, 80):
             if i + 5 < 3000:
                 ecg[i:i+5] += 1.6 * np.array([0.2, 0.8, 2.0, 0.5, -0.2])
+                
+        # Normal respiration curve (~15 breaths/min = 0.25 Hz)
+        edr = 1.0 + 0.2 * np.sin(2 * np.pi * 0.25 * t)
 
     # Slight baseline wander
     ecg += 0.08 * np.sin(2 * np.pi * 0.2 * t)
-    return ecg.tolist()
+    
+    return {
+        "ecg_signal": ecg.tolist(),
+        "edr_signal": edr.tolist()
+    }

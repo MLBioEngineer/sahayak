@@ -3,6 +3,7 @@ import { getEcgBenchmark, predictEcg } from "../api/client";
 
 export default function SleepApneaMonitor({ onDiscussWithAi }) {
   const [signal, setSignal] = useState([]);
+  const [edrSignal, setEdrSignal] = useState([]);
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState("apnea");
@@ -20,6 +21,11 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
     try {
       const data = await getEcgBenchmark(patientType);
       setSignal(data.ecg_signal);
+      if (data.edr_signal) {
+        setEdrSignal(data.edr_signal);
+      } else {
+        setEdrSignal([]);
+      }
       setPrediction(data.model_prediction);
     } catch (err) {
       console.error("Failed to load benchmark:", err);
@@ -28,7 +34,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
     }
   }
 
-  // Draw ECG Waveform on Canvas
+  // Draw ECG and EDR Waveforms on Canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || signal.length === 0) return;
@@ -55,26 +61,69 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
       ctx.stroke();
     }
 
+    const ecgHeight = height * 0.65;
+    const edrHeight = height * 0.35;
+    const step = width / (signal.length - 1);
+
     // Draw ECG Trace
     ctx.strokeStyle = prediction?.is_apnea ? "#ff4d4f" : "#00ff88";
     ctx.lineWidth = 1.8;
     ctx.shadowBlur = 6;
     ctx.shadowColor = prediction?.is_apnea ? "rgba(255, 77, 79, 0.6)" : "rgba(0, 255, 136, 0.6)";
 
-    const step = width / (signal.length - 1);
-    const midY = height / 2;
-    const scaleY = height / 6.0;
+    const ecgMidY = ecgHeight / 2;
+    const ecgScaleY = ecgHeight / 6.0;
 
     ctx.beginPath();
     for (let i = 0; i < signal.length; i++) {
       const x = i * step;
-      const y = midY - signal[i] * scaleY;
+      const y = ecgMidY - signal[i] * ecgScaleY;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
+
+    // Draw EDR Trace (if available)
+    if (edrSignal && edrSignal.length > 0) {
+      ctx.strokeStyle = "#00d2ff"; // Cyan for EDR
+      ctx.lineWidth = 2.0;
+      ctx.shadowColor = "rgba(0, 210, 255, 0.6)";
+      
+      // Draw EDR divider line
+      ctx.beginPath();
+      ctx.moveTo(0, ecgHeight);
+      ctx.lineTo(width, ecgHeight);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 0;
+      ctx.stroke();
+      
+      // Draw actual EDR signal
+      ctx.strokeStyle = "#00d2ff";
+      ctx.lineWidth = 2.0;
+      ctx.shadowBlur = 6;
+
+      const edrMidY = ecgHeight + (edrHeight / 2);
+      const edrScaleY = edrHeight / 2.5; 
+
+      ctx.beginPath();
+      for (let i = 0; i < edrSignal.length; i++) {
+        const x = i * step;
+        const y = edrMidY - (edrSignal[i] - 0.8) * edrScaleY;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      
+      // Add EDR label text on canvas
+      ctx.fillStyle = "#00d2ff";
+      ctx.font = "12px sans-serif";
+      ctx.shadowBlur = 0;
+      ctx.fillText("EDR (Respiration)", 10, ecgHeight + 20);
+    }
+
     ctx.shadowBlur = 0;
-  }, [signal, prediction]);
+  }, [signal, edrSignal, prediction]);
 
   function handleFileUpload(e) {
     const file = e.target.files[0];
@@ -94,6 +143,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
           setLoading(true);
           const pred = await predictEcg(numbers.slice(0, 3000));
           setSignal(numbers.slice(0, 3000));
+          setEdrSignal([]); // Clear EDR for custom upload unless we calculate it
           setPrediction(pred);
         }
       } catch (err) {
@@ -151,9 +201,9 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
 
       {/* ECG Canvas Waveform Display */}
       <div className="canvas-wrapper">
-        <canvas ref={canvasRef} width={800} height={220} className="ecg-canvas" />
+        <canvas ref={canvasRef} width={800} height={320} className="ecg-canvas" />
         <div className="canvas-overlay">
-          <span>লেড: Single-Lead ECG (100 Hz)</span>
+          <span>লেড: Single-Lead ECG (100 Hz) {edrSignal.length > 0 && " + EDR"}</span>
           <span>উইন্ডো: ৩০ সেকেন্ড (৩,০০০ স্যাম্পল)</span>
         </div>
       </div>
