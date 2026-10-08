@@ -4,8 +4,9 @@
   align-items: center;
   padding: 20px 16px;
   min-height: 100vh;
-  background-color: #f7f9f8;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #212121;
+  color: #FFFFFF;
+  font-family: -apple-system-body, ui-sans-serif, -apple-system, "system-ui", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, "sans-serif", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
 /* Tab Navigation */
@@ -13,8 +14,8 @@
   display: flex;
   gap: 8px;
   margin-bottom: 20px;
-  background: #e6ede9;
-  padding: 5px;
+  background: #171717;
+  padding: 6px;
   border-radius: 12px;
   max-width: 560px;
   width: 100%;
@@ -25,9 +26,9 @@
   padding: 10px 14px;
   border: none;
   background: transparent;
-  color: #4a5c54;
-  font-size: 13.5px;
-  font-weight: 600;
+  color: #AFAFAF;
+  font-size: 16px;
+  font-weight: 400;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -35,13 +36,17 @@
 }
 
 .tab-btn.tab-active {
-  background: #fff;
-  color: #254d40;
-  box-shadow: 0 2px 6px rgba(37, 77, 64, 0.12);
+  background: #414141;
+  color: #FFFFFF;
+}
+
+.tab-btn:hover:not(.tab-active) {
+  background: #2F2F2F;
 }
 
 .main-content {
   width: 100%;
+  max-width: 989px;
   display: flex;
   justify-content: center;
 }
@@ -49,99 +54,101 @@
 /* Chat Window */
 .chat-window {
   width: 100%;
-  max-width: 480px;
-  background: #fff;
-  border: 1px solid #d9d3c4;
+  background: #212121;
+  border: none;
   border-radius: 16px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
 }
 
 .chat-header {
-  background: #254d40;
-  color: #fff;
+  background: #212121;
+  color: #FFFFFF;
   padding: 14px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .pdf-btn {
   background: transparent;
   border: 1px solid rgba(255,255,255,0.4);
-  color: #fff;
+  color: #FFFFFF;
   border-radius: 8px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
 }
 .pdf-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .chat-body {
-  padding: 16px;
-  min-height: 340px;
-  max-height: 480px;
+  padding: 16px 0;
+  min-height: 400px;
+  max-height: 600px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
 }
-.empty-state { color: #6b7a75; font-size: 14px; text-align: center; margin-top: 40px; }
+.empty-state { color: #AFAFAF; font-size: 16px; text-align: center; margin-top: 40px; }
 
 .bubble {
-  max-width: 82%;
+  max-width: 85%;
   padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 14px;
-  line-height: 1.5;
+  border-radius: 16px;
+  font-size: 16px;
+  line-height: 26px;
 }
 .bubble.user {
   align-self: flex-end;
-  background: #dfe9e3;
-  color: #254d40;
+  background: #2F2F2F;
+  color: #FFFFFF;
 }
 .bubble.assistant {
   align-self: flex-start;
-  background: #f6f4ee;
-  border: 1px solid #d9d3c4;
-  color: #1e2d27;
+  background: transparent;
+  color: #FFFFFF;
 }
 
 .chat-input {
   display: flex;
   gap: 8px;
-  padding: 14px;
-  border-top: 1px solid #d9d3c4;
-  background: #fff;
+  padding: 14px 0;
+  background: #212121;
+  align-items: center;
 }
 .chat-input input {
   flex: 1;
-  border: 1px solid #d9d3c4;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #2F2F2F;
+  color: #FFFFFF;
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-size: 16px;
   outline: none;
 }
 .chat-input input:focus {
-  border-color: #254d40;
+  border-color: rgba(255, 255, 255, 0.5);
 }
 .chat-input button {
-  background: #254d40;
-  color: #fff;
+  background: #FFFFFF;
+  color: #000000;
   border: none;
-  border-radius: 10px;
-  padding: 0 16px;
+  border-radius: 16px;
+  padding: 10px 16px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  height: 100%;
 }
-.chat-input button:hover { background: #1c3c32; }
+.chat-input button:hover { background: #E5E5E5; }
 
 .disclaimer {
   text-align: center;
-  font-size: 11px;
-  color: #6b7a75;
+  font-size: 12px;
+  color: #AFAFAF;
   padding: 0 16px 14px;
   margin: 0;
 }
@@ -149,147 +156,146 @@
 /* ECG Sleep Apnea Monitor Card */
 .ecg-monitor-card {
   width: 100%;
-  max-width: 680px;
-  background: #fff;
-  border: 1px solid #d4ddd7;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+  max-width: 800px;
+  background: #212121;
+  border: none;
+  padding: 0;
 }
 
 .ecg-header h3 {
-  margin: 0 0 4px 0;
-  color: #1e3b31;
-  font-size: 18px;
+  margin: 0 0 8px 0;
+  color: #FFFFFF;
+  font-size: 24px;
+  font-weight: 600;
 }
 .ecg-header .subtitle {
-  margin: 0 0 16px 0;
-  color: #61736a;
-  font-size: 12.5px;
+  margin: 0 0 20px 0;
+  color: #AFAFAF;
+  font-size: 16px;
 }
 
 .ecg-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .btn-test {
-  padding: 8px 12px;
-  border: 1px solid #c9d6ce;
-  background: #f7faf8;
-  color: #2d453b;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #FFFFFF;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-test:hover { background: #e9f0ec; }
+.btn-test:hover { background: #2F2F2F; }
 .btn-test.active-apnea {
-  background: #fff1f0;
-  border-color: #ffa39e;
-  color: #cf1322;
+  background: rgba(255, 77, 79, 0.1);
+  border-color: #ff4d4f;
+  color: #ff4d4f;
 }
 .btn-test.active-normal {
-  background: #f6ffed;
-  border-color: #b7eb8f;
-  color: #389e0d;
+  background: rgba(0, 255, 136, 0.1);
+  border-color: #00ff88;
+  color: #00ff88;
 }
 
 .btn-upload {
-  padding: 8px 12px;
-  border: 1px dashed #9cb5a8;
-  background: #fff;
-  color: #3f594d;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 500;
+  padding: 8px 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.4);
+  background: transparent;
+  color: #AFAFAF;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 400;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
 }
-.btn-upload:hover { background: #f2f7f4; }
+.btn-upload:hover { background: #2F2F2F; }
 
 /* Canvas Styling */
 .canvas-wrapper {
   position: relative;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
-  margin-bottom: 16px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+  margin-bottom: 24px;
+  background: #0F1117;
 }
 .ecg-canvas {
   display: block;
   width: 100%;
-  height: 220px;
+  height: 320px;
 }
 .canvas-overlay {
   position: absolute;
-  top: 8px;
-  right: 12px;
+  top: 12px;
+  right: 16px;
   display: flex;
-  gap: 14px;
-  font-size: 11px;
-  color: #8fb9a8;
+  gap: 16px;
+  font-size: 12px;
+  color: #AFAFAF;
   font-family: monospace;
 }
 
 /* Prediction Result Card */
 .prediction-card {
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #e1e8e4;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #2F2F2F;
 }
 .prediction-card.risk-high {
-  background: #fff7f7;
-  border-color: #ffd4d4;
+  border-color: rgba(255, 77, 79, 0.3);
 }
 .prediction-card.risk-safe {
-  background: #f7fdf9;
-  border-color: #d1f2dd;
+  border-color: rgba(0, 255, 136, 0.3);
 }
 
 .prediction-main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .status-badge {
-  font-size: 14.5px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
 }
-.risk-high .status-badge { color: #cf1322; }
-.risk-safe .status-badge { color: #237804; }
+.risk-high .status-badge { color: #ff4d4f; }
+.risk-safe .status-badge { color: #00ff88; }
 
 .confidence-pill {
-  font-size: 12px;
-  background: rgba(0,0,0,0.06);
-  padding: 4px 10px;
+  font-size: 14px;
+  background: rgba(255,255,255,0.1);
+  padding: 4px 12px;
   border-radius: 20px;
 }
 
 .prediction-details {
-  font-size: 13.5px;
-  color: #3b4e45;
-  line-height: 1.5;
-  margin-bottom: 14px;
+  font-size: 16px;
+  color: #CDCDCD;
+  line-height: 24px;
+  margin-bottom: 20px;
 }
 
 .btn-discuss {
   width: 100%;
-  background: #254d40;
-  color: #fff;
+  background: #FFFFFF;
+  color: #000000;
   border: none;
-  padding: 11px;
-  border-radius: 10px;
-  font-size: 13.5px;
+  padding: 12px;
+  border-radius: 16px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
 }
 .btn-discuss:hover {
-  background: #1b382f;
+  background: #E5E5E5;
 }
