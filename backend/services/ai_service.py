@@ -13,7 +13,7 @@ logger = logging.getLogger("sahayak.ai_service")
 
 # Configuration from environment variables
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile") # Top tier open source model on Groq
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant") # Fast and reliable Groq model
 TIMEOUT_SECONDS = float(os.getenv("LLM_TIMEOUT_SECONDS", "45.0"))
 
 # Initialize Groq client
