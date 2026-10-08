@@ -7,18 +7,12 @@ from slowapi.util import get_remote_address
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
-def get_rate_limit(request: Request) -> str:
-    """Guest users get strict limits, signed in users get higher limits."""
-    if request.headers.get("Authorization"):
-        return "60/minute"
-    return "3/minute"
-
 @router.post("", response_model=ChatResponse)
-@limiter.limit(get_rate_limit)
+@limiter.limit("15/minute")
 def chat(request: Request, body: ChatRequest):
     """
-    Main chat endpoint. Calls self-hosted Ollama AI service with dynamic rate-limiting.
-    Guest users are heavily restricted to encourage sign-up.
+    Main chat endpoint. Calls self-hosted Ollama AI service with rate-limiting
+    and graceful error handling.
     """
     history_as_dicts = [m.model_dump() for m in body.history]
     reply = get_ai_response(body.message, history_as_dicts)

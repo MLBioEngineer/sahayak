@@ -14,13 +14,7 @@ from slowapi.errors import RateLimitExceeded
 
 from routers import chat, pdf, ecg
 
-def get_global_rate_limit(request: Request) -> str:
-    """Guest users get 10 requests/minute. Logged-in users get 100/minute."""
-    if request.headers.get("Authorization"):
-        return "100/minute"
-    return "10/minute"
-
-limiter = Limiter(key_func=get_remote_address, default_limits=[get_global_rate_limit])
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 app = FastAPI(title="Sahayak API", version="0.1.0")
 app.state.limiter = limiter
 
