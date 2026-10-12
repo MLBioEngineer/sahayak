@@ -12,6 +12,13 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [theme, setTheme] = useState(() => localStorage.getItem("sahayak_theme") || "dark");
+
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("sahayak_theme", nextTheme);
+  }
 
   useEffect(() => {
     // Check active session on initial load
@@ -42,12 +49,12 @@ export default function App() {
   }
 
   if (authChecking) {
-    return <div className="app auth-page-bg"><p style={{color: '#fff'}}>Loading...</p></div>;
+    return <div className={`app theme-${theme} auth-page-bg`}><p style={{color: '#fff'}}>Loading...</p></div>;
   }
 
   if (!user && !isGuest) {
     return (
-      <div className="app auth-page-bg">
+      <div className={`app theme-${theme} auth-page-bg`}>
         <AuthScreen 
           onLogin={(userData) => setUser(userData)} 
           onGuest={() => setIsGuest(true)} 
@@ -58,16 +65,28 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app theme-${theme}`}>
       <div className="user-status-bar">
         <span>{user ? `👤 Logged in as ${user.email}` : "⚠️ Guest Mode - Limited Access"}</span>
-        <button 
-          className="text-btn" 
-          onClick={user ? handleLogout : () => setIsGuest(false)}
-        >
-          {user ? "Log out" : "Sign in"}
-        </button>
+        <div className="user-status-actions">
+          <button 
+            className="theme-toggle-btn" 
+            onClick={toggleTheme} 
+            title="থিম পরিবর্তন করুন"
+            type="button"
+          >
+            {theme === "dark" ? "☀️ লাইট মোড" : "🌙 ডার্ক মোড"}
+          </button>
+          <button 
+            className="text-btn" 
+            onClick={user ? handleLogout : () => setIsGuest(false)}
+            type="button"
+          >
+            {user ? "Log out" : "Sign in"}
+          </button>
+        </div>
       </div>
+
 
       {/* Top Navigation Tabs */}
       <nav className="tab-nav">

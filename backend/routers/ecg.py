@@ -118,3 +118,27 @@ def reset_stream_buffer():
     STREAM_BUFFER.clear()
     return {"status": "cleared", "buffer_size": 0}
 
+
+from fastapi.responses import Response
+from services.pdf_service import build_ecg_report_pdf
+
+class ECGReportExportRequest(BaseModel):
+    is_apnea: bool
+    confidence: float
+    metrics: dict
+    xai: Optional[dict] = None
+    patient_id: Optional[str] = "P-10482 (Sahayak Patient)"
+    source: Optional[str] = "ESP32 Wi-Fi Node"
+
+@router.post("/export-report")
+def export_ecg_report(request: ECGReportExportRequest):
+    """Generates and downloads a formal clinical sleep apnea diagnostic PDF report."""
+    report_dict = request.model_dump()
+    pdf_bytes = build_ecg_report_pdf(report_dict)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=sahayak-ecg-report.pdf"},
+    )
+
+

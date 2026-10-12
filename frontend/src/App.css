@@ -454,6 +454,7 @@
   max-width: 989px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 8px 16px;
   background: rgba(255,255,255,0.05);
   border-radius: 8px;
@@ -462,3 +463,407 @@
   color: #AFAFAF;
   box-sizing: border-box;
 }
+
+.user-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-toggle-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Physiological Vitals Ribbon */
+.vitals-ribbon {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.vital-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.vital-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.vital-icon {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heart-pulse {
+  display: inline-block;
+  animation: heart-beat 1.1s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+@keyframes heart-beat {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.3); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.2); }
+  70% { transform: scale(1); }
+}
+
+.vital-content {
+  display: flex;
+  flex-direction: column;
+}
+.vital-label {
+  font-size: 12px;
+  color: #AFAFAF;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.vital-val {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+.vital-unit {
+  font-size: 13px;
+  font-weight: 400;
+  color: #00d2ff;
+}
+.rhythm-status-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #00ff88;
+  line-height: 18px;
+}
+
+/* Explainable AI (XAI) Saliency Heatmap */
+.xai-container {
+  background: #171717;
+  border: 1px solid rgba(0, 210, 255, 0.25);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.xai-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.xai-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: #FFFFFF;
+}
+
+.xai-badge-tech {
+  font-size: 11px;
+  background: rgba(0, 210, 255, 0.15);
+  color: #00d2ff;
+  border: 1px solid rgba(0, 210, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-family: monospace;
+}
+
+.xai-toggle-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #AFAFAF;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.xai-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+
+.xai-heatmap-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #AFAFAF;
+  margin-bottom: 8px;
+}
+
+.xai-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-box {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+.legend-box.low { background: rgba(0, 210, 255, 0.25); }
+.legend-box.high { background: rgba(255, 77, 79, 0.9); }
+
+.xai-heatmap-track {
+  display: flex;
+  height: 24px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #090e12;
+}
+
+.xai-heatmap-cell {
+  flex: 1;
+  height: 100%;
+  transition: opacity 0.2s;
+}
+.xai-heatmap-cell:hover {
+  transform: scaleY(1.2);
+  cursor: crosshair;
+}
+
+.xai-timeline-markers {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #777777;
+  font-family: monospace;
+  margin-top: 4px;
+  margin-bottom: 14px;
+}
+
+.xai-explanation-box {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.xai-summary-text {
+  font-size: 14px;
+  line-height: 22px;
+  color: #E0E0E0;
+  margin: 0 0 10px 0;
+}
+
+.xai-regions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.xai-region-card {
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 3px solid #ff4d4f;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.xai-reg-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.xai-time-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: #FFFFFF;
+  font-family: monospace;
+}
+
+.xai-importance-pill {
+  font-size: 11px;
+  background: rgba(255, 77, 79, 0.2);
+  color: #ff7875;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.xai-reg-desc {
+  font-size: 12.5px;
+  color: #BBBBBB;
+  line-height: 18px;
+}
+
+/* Action Button Group */
+.action-button-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+@media (max-width: 600px) {
+  .action-button-group {
+    grid-template-columns: 1fr;
+  }
+}
+
+.btn-download-pdf {
+  width: 100%;
+  background: linear-gradient(135deg, #00d2ff 0%, #0072ff 100%);
+  color: #FFFFFF;
+  border: none;
+  padding: 12px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 114, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-download-pdf:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 114, 255, 0.4);
+}
+.btn-download-pdf:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========================================================= */
+/* THEME: LIGHT (Clinical Hospital Mode)                     */
+/* ========================================================= */
+.app.theme-light {
+  background-color: #F0F4F5;
+  color: #1A2825;
+}
+
+.app.theme-light .tab-nav {
+  background: #E2E8E7;
+}
+
+.app.theme-light .tab-btn {
+  color: #5C6E6B;
+}
+
+.app.theme-light .tab-btn.tab-active {
+  background: #FFFFFF;
+  color: #0F3D3E;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.app.theme-light .user-status-bar {
+  background: #FFFFFF;
+  color: #555555;
+  border: 1px solid #DCE3E2;
+}
+
+.app.theme-light .theme-toggle-btn {
+  background: #EAF0EF;
+  border-color: #CCD6D4;
+  color: #1A2825;
+}
+
+.app.theme-light .ecg-monitor-card {
+  background: #FFFFFF;
+  border: 1px solid #DCE3E2;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.app.theme-light .ecg-header h3 {
+  color: #0F3D3E;
+}
+
+.app.theme-light .ecg-header .subtitle {
+  color: #5C6E6B;
+}
+
+.app.theme-light .vitals-ribbon .vital-card {
+  background: #F7FAFA;
+  border-color: #E2E8E7;
+}
+.app.theme-light .vitals-ribbon .vital-val {
+  color: #0F3D3E;
+}
+.app.theme-light .vitals-ribbon .vital-label {
+  color: #6B7C79;
+}
+
+.app.theme-light .btn-test {
+  border-color: #CCD6D4;
+  color: #2F3E3C;
+}
+.app.theme-light .btn-test:hover {
+  background: #EAF0EF;
+}
+
+.app.theme-light .xai-container {
+  background: #F9FBFA;
+  border-color: #B2E5F5;
+}
+.app.theme-light .xai-title {
+  color: #0F3D3E;
+}
+.app.theme-light .xai-summary-text {
+  color: #2D3E3B;
+}
+.app.theme-light .xai-explanation-box {
+  background: #FFFFFF;
+  border-color: #E2E8E7;
+}
+
+.app.theme-light .prediction-card {
+  background: #F7FAFA;
+  border-color: #DCE3E2;
+}
+.app.theme-light .prediction-details {
+  color: #2F3E3C;
+}
+
+.app.theme-light .chat-window {
+  background: #FFFFFF;
+  border: 1px solid #DCE3E2;
+}
+.app.theme-light .chat-header {
+  background: #F7FAFA;
+  color: #0F3D3E;
+  border-bottom-color: #E2E8E7;
+}
+.app.theme-light .bubble.assistant {
+  color: #1A2825;
+}
+.app.theme-light .bubble.user {
+  background: #EAF0EF;
+  color: #0F3D3E;
+}
+.app.theme-light .chat-input {
+  background: #FFFFFF;
+  border-top: 1px solid #E2E8E7;
+}
+.app.theme-light .chat-input input {
+  background: #F7FAFA;
+  color: #1A2825;
+  border-color: #CCD6D4;
+}
+
