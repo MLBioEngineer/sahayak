@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getEcgBenchmark, predictEcg } from "../api/client";
+import { getEcgBenchmark, predictEcg, getLiveEcgStream } from "../api/client";
 
 export default function SleepApneaMonitor({ onDiscussWithAi }) {
   const [signal, setSignal] = useState([]);
@@ -8,14 +8,64 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
   const [loading, setLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState("apnea");
   const [activeTab, setActiveTab] = useState("benchmark"); // 'benchmark' or 'upload'
+  const [isLiveStreaming, setIsLiveStreaming] = useState(false);
+  const [liveStatus, setLiveStatus] = useState(null);
   const canvasRef = useRef(null);
+  const liveIntervalRef = useRef(null);
 
   // Load benchmark on initial mount
   useEffect(() => {
     loadBenchmark("apnea");
   }, []);
 
+  // Poll live stream every 1 second when in live mode
+  useEffect(() => {
+    if (isLiveStreaming && selectedPatient === "live") {
+      fetchLiveStreamData();
+      liveIntervalRef.current = setInterval(() => {
+        fetchLiveStreamData();
+      }, 1000);
+    } else {
+      if (liveIntervalRef.current) {
+        clearInterval(liveIntervalRef.current);
+      }
+    }
+    return () => {
+      if (liveIntervalRef.current) {
+        clearInterval(liveIntervalRef.current);
+      }
+    };
+  }, [isLiveStreaming, selectedPatient]);
+
+  async function fetchLiveStreamData() {
+    try {
+      const data = await getLiveEcgStream();
+      setLiveStatus({
+        is_active: data.is_active,
+        device_id: data.device_id,
+        last_received_seconds_ago: data.last_received_seconds_ago,
+        samples_count: data.samples_count
+      });
+      if (data.samples && data.samples.length > 0) {
+        setSignal(data.samples);
+      }
+      if (data.prediction) {
+        setPrediction(data.prediction);
+      }
+    } catch (err) {
+      console.error("Live stream fetch error:", err);
+    }
+  }
+
+  function startLiveStream() {
+    setIsLiveStreaming(true);
+    setSelectedPatient("live");
+    setEdrSignal([]);
+  }
+
   async function loadBenchmark(patientType) {
+    setIsLiveStreaming(false);
+    setLiveStatus(null);
     setLoading(true);
     setSelectedPatient(patientType);
     try {
@@ -33,6 +83,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
       setLoading(false);
     }
   }
+
 
   // Draw ECG and EDR Waveforms on Canvas
   useEffect(() => {
@@ -63,13 +114,18 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
 
     const ecgHeight = height * 0.65;
     const edrHeight = height * 0.35;
-    const step = width / (signal.length - 1);
+    const maxPoints = Math.max(signal.length - 1, selectedPatient === "live" ? 1000 : 1);
+    const step = signal.length > 1 ? width / maxPoints : 0;
 
     // Draw ECG Trace
-    ctx.strokeStyle = prediction?.is_apnea ? "#ff4d4f" : "#00ff88";
+    const traceColor = selectedPatient === "live"
+      ? (prediction?.is_apnea ? "#ff4d4f" : "#00d2ff")
+      : (prediction?.is_apnea ? "#ff4d4f" : "#00ff88");
+
+    ctx.strokeStyle = traceColor;
     ctx.lineWidth = 1.8;
     ctx.shadowBlur = 6;
-    ctx.shadowColor = prediction?.is_apnea ? "rgba(255, 77, 79, 0.6)" : "rgba(0, 255, 136, 0.6)";
+    ctx.shadowColor = traceColor;
 
     const ecgMidY = ecgHeight / 2;
     const ecgScaleY = ecgHeight / 6.0;
@@ -123,11 +179,14 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
     }
 
     ctx.shadowBlur = 0;
-  }, [signal, edrSignal, prediction]);
+  }, [signal, edrSignal, prediction, selectedPatient]);
 
   function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
+    setIsLiveStreaming(false);
+    setLiveStatus(null);
+    setSelectedPatient("custom");
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
@@ -177,7 +236,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
         </div>
       </div>
 
-      {/* Control Buttons for Demo / Benchmarks */}
+      {/* Control Buttons for Demo / Benchmarks / Hardware */}
       <div className="ecg-controls">
         <button
           className={`btn-test ${selectedPatient === "apnea" ? "active-apnea" : ""}`}
@@ -193,20 +252,52 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
         >
           🟢 রোগী ২: সুস্থ স্বাভাবিক ইসিজি (Normal Control)
         </button>
+        <button
+          className={`btn-test ${selectedPatient === "live" ? "active-live" : ""}`}
+          onClick={startLiveStream}
+          disabled={loading}
+        >
+          {isLiveStreaming && <span className="live-pulse-dot"></span>}
+          📡 লাইভ ESP32 ডিভাইস
+        </button>
         <label className="btn-upload">
           📁 কাস্টম ফাইল (.csv / .json)
           <input type="file" accept=".csv,.json,.txt" onChange={handleFileUpload} style={{ display: "none" }} />
         </label>
       </div>
 
+      {/* Live Stream Telemetry Banner */}
+      {selectedPatient === "live" && (
+        <div className={`live-status-bar ${liveStatus?.is_active ? "online" : "waiting"}`}>
+          <div>
+            {liveStatus?.is_active ? (
+              <>
+                <span className="live-pulse-dot"></span>
+                <strong>ESP32 ডিভাইস সক্রিয়</strong> ({liveStatus.device_id || "ESP32_SIM_01"} • {liveStatus.samples_count} স্যাম্পল প্রাপ্ত)
+              </>
+            ) : (
+              <>
+                ⏳ <strong>ESP32 সিগন্যালের অপেক্ষায়...</strong> {liveStatus?.samples_count > 0 ? `(শেষ ডেটা ${liveStatus.last_received_seconds_ago} সেক আগে)` : "(ESP32 চালুর পর স্বয়ংক্রিয়ভাবে গ্রাফ দেখাবে)"}
+              </>
+            )}
+          </div>
+          <div>লাইভ টেলিম্যাট্রি (100 Hz Wi-Fi Stream)</div>
+        </div>
+      )}
+
       {/* ECG Canvas Waveform Display */}
       <div className="canvas-wrapper">
         <canvas ref={canvasRef} width={800} height={320} className="ecg-canvas" />
         <div className="canvas-overlay">
           <span>লেড: Single-Lead ECG (100 Hz) {edrSignal.length > 0 && " + EDR"}</span>
-          <span>উইন্ডো: ৩০ সেকেন্ড (৩,০০০ স্যাম্পল)</span>
+          <span>
+            {selectedPatient === "live"
+              ? `লাইভ উইন্ডো: ${Math.round(signal.length / 100)} সেকেন্ড (${signal.length} স্যাম্পল)`
+              : "উইন্ডো: ৩০ সেকেন্ড (৩,০০০ স্যাম্পল)"}
+          </span>
         </div>
       </div>
+
 
       {/* Diagnostic Prediction Results Card */}
       {prediction && (

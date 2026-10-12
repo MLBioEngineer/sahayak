@@ -88,3 +88,22 @@ export async function analyzeEcgSession(epochs, patientId = "Anonymous") {
   }
   return await res.json();
 }
+
+export async function getLiveEcgStream() {
+  const res = await fetch(`${API_BASE}/api/ecg/stream/latest`);
+  if (!res.ok) {
+    throw new Error("Failed to fetch live ECG stream");
+  }
+  return await res.json();
+}
+
+export async function resetLiveEcgStream() {
+  const res = await fetch(`${API_BASE}/api/ecg/stream/reset`, {
+    method: "POST"
+  });
+  if (!res.ok) {
+    throw new Error("Failed to reset stream buffer");
+  }
+  return await res.json();
+}
+

@@ -56,15 +56,65 @@ def get_benchmark(patient_type: str = "apnea"):
         "model_prediction": prediction
     }
 
+import time
+from collections import deque
+
+# In-memory buffer for real-time ESP32 telemetry (holds up to 30 seconds = 3000 samples @ 100 Hz)
+STREAM_BUFFER = deque(maxlen=3000)
+LAST_STREAM_TIME = 0.0
+LAST_DEVICE_ID = "ESP32_NODE"
+
 @router.post("/stream")
 def receive_hardware_stream(data: StreamChunkRequest):
     """
     Endpoint for ESP32 hardware streaming over Wi-Fi.
-    Accepts real-time batches of ECG samples and logs telemetry.
+    Accepts real-time batches of ECG samples and buffers them in memory.
     """
+    global LAST_STREAM_TIME, LAST_DEVICE_ID
+    if data.samples:
+        STREAM_BUFFER.extend(data.samples)
+    LAST_STREAM_TIME = time.time()
+    LAST_DEVICE_ID = data.device_id
     return {
         "status": "received",
         "device_id": data.device_id,
         "samples_received": len(data.samples),
+        "buffer_size": len(STREAM_BUFFER),
         "message": "Telemetry received successfully"
     }
+
+@router.get("/stream/latest")
+def get_latest_stream():
+    """
+    Endpoint for frontend to fetch latest buffered telemetry from ESP32.
+    Includes active status, window samples, and live model prediction.
+    """
+    current_time = time.time()
+    # Device is considered active if a chunk was received within last 12 seconds
+    is_active = (current_time - LAST_STREAM_TIME < 12.0) if LAST_STREAM_TIME > 0 else False
+    samples_list = list(STREAM_BUFFER)
+    
+    prediction = None
+    if len(samples_list) >= 100:
+        try:
+            # Predict using latest window (up to 3000 samples)
+            window = samples_list[-3000:]
+            prediction = predict_epoch(window)
+        except Exception as e:
+            prediction = None
+
+    return {
+        "is_active": is_active,
+        "device_id": LAST_DEVICE_ID if LAST_STREAM_TIME > 0 else None,
+        "last_received_seconds_ago": round(current_time - LAST_STREAM_TIME, 1) if LAST_STREAM_TIME > 0 else None,
+        "samples_count": len(samples_list),
+        "samples": samples_list,
+        "prediction": prediction
+    }
+
+@router.post("/stream/reset")
+def reset_stream_buffer():
+    """Resets the live streaming buffer."""
+    STREAM_BUFFER.clear()
+    return {"status": "cleared", "buffer_size": 0}
+
