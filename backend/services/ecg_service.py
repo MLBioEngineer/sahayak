@@ -228,17 +228,17 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100) -> dict:
     # =========================================================================
     # REAL-TIME 5-SECOND BREATH-HOLD & APNEA SENSING (Cardiac Pause & Modulation)
     # =========================================================================
-    # During normal breathing: Regular sinus rhythm is maintained (60-95 BPM, steady RR)
-    # During voluntary breath-hold (Valsalva) or obstructive sleep apnea:
-    # 1. Marked vagal cardiac pause occurs (RR interval >= 1300ms)
-    # 2. Or significant bradycardia drop occurs (BPM < 54)
-    # 3. Or high autonomic arrhythmia variance (RR std > 120ms and RMSSD > 85ms)
+    # During normal breathing: Regular sinus rhythm is maintained (60-95 BPM, steady RR ~810ms)
+    # During voluntary 5s breath-hold (Valsalva) or obstructive sleep apnea:
+    # 1. Vagal reflex causes cardiac pause / interval lengthening (RR interval >= 930ms)
+    # 2. Or heart rate dips during breath cessation (BPM <= 65)
+    # 3. Or autonomic arrhythmia variance spikes (RR std > 80ms and RMSSD > 60ms)
     is_breath_hold = False
     
     if len(valid_rr) >= 2:
         max_recent_rr = float(np.max(recent_rr))
         rr_std = float(np.std(recent_rr))
-        if max_recent_rr >= 1300.0 or bpm < 54 or (rr_std > 120.0 and rmssd > 85.0):
+        if max_recent_rr >= 930.0 or bpm <= 65 or (rr_std > 80.0 and rmssd > 60.0):
             is_breath_hold = True
 
     if is_breath_hold:

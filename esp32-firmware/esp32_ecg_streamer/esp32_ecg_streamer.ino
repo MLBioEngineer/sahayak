@@ -1,53 +1,63 @@
-/*
- * ==============================================================================
- * ESP32 ECG Streamer (HIL Simulation Mode) for Sahayak
- * ==============================================================================
- * Connect a single jumper wire from GPIO 25 to GPIO 36 (VP).
- * ==============================================================================
- */
-
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-// Wi-Fi Credentials - REPLACE THESE
-const char* ssid     = "Lucky 13";
-const char* password = "qwertyuiop";
+// ================= আপনার ওয়াই-ফাই রাউটার =================
+const char* WIFI_SSID     = "Lucky 13";
+const char* WIFI_PASSWORD = "qwertyuiop";
 
-// Sahayak Backend Endpoint
-const char* serverUrl = "https://sahayak-lkhm.onrender.com/api/ecg/stream";
+// ক্লাউড ব্যাকএন্ড লাইভ টেলিমেট্রি এন্ডপয়েন্ট
+const char* SERVER_URL    = "https://sahayak-lkhm.onrender.com/api/ecg/stream";
+const char* DEVICE_ID     = "ESP32_AD8232_REAL";
 
-const int ECG_PIN = 36;          // Reading fake signal
-const int DAC_PIN = 25;          // Generating fake signal
-const int SAMPLE_RATE_HZ = 100;
-const int BATCH_SIZE = 100;
+// এনালগ পিন (ESP32-এর VP / GPIO 36)
+const int ECG_PIN = 36; 
 
+const int SAMPLE_RATE_HZ = 100; // 100 Hz মেডিকেল স্যাম্পলিং
+const unsigned long sampleIntervalMicros = 1000000 / SAMPLE_RATE_HZ; // 10000 µs
+
+// ৫০ স্যাম্পল ব্যাচ = প্রতি ০.৫ সেকেন্ডে ১ বার ক্লাউডে পাঠানো (র‍্যাম কখনো ওভারলোড হবে না)
+const int BATCH_SIZE = 50; 
 float ecgBuffer[BATCH_SIZE];
 int bufferIndex = 0;
-unsigned long lastSampleMicros = 0;
-const unsigned long sampleIntervalMicros = 1000000 / SAMPLE_RATE_HZ;
 
-int fakeEcgPhase = 0;
+unsigned long lastSampleMicros = 0;
+float dcBaseline = 2048.0;
+float prevRaw = 2048.0;
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  Serial.println("\n--- Starting Sahayak ECG Streamer (Simulation Mode) ---");
+  delay(500);
 
-  WiFi.begin(ssid, password);
+  analogReadResolution(12); // ESP32 12-bit ADC (0 - 4095)
+  analogSetAttenuation(ADC_11db); // Full-scale voltage (0 - 3.3V)
+
+  Serial.println("\n--- সহায়ক IoT: একটানা মসৃণ ইসিজি স্ট্রিমিং ---");
+  
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+
+  Serial.print("Lucky 14 রাউটারে কানেক্ট হচ্ছে...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\n[OK] Connected! IP: " + WiFi.localIP().toString());
+  
+  Serial.println("\n ওয়াই-ফাই সফলভাবে কানেক্টেড!");
+  Serial.print("ESP32 আইপি: ");
+  Serial.println(WiFi.localIP());
 }
 
 void sendBatchToServer() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
-    http.begin(serverUrl);
+    http.begin(SERVER_URL);
+    http.setTimeout(1200); // টাইমআউট যাতে কখনো হ্যাং না হয়
     http.addHeader("Content-Type", "application/json");
 
-    String json = "{\"device_id\":\"ESP32_SIM_01\",\"samples\":[";
+    String json = "{\"device_id\":\"" + String(DEVICE_ID) + "\",\"samples\":[";
     for (int i = 0; i < BATCH_SIZE; i++) {
       json += String(ecgBuffer[i], 3);
       if (i < BATCH_SIZE - 1) json += ",";
@@ -55,37 +65,30 @@ void sendBatchToServer() {
     json += "]}";
 
     int httpCode = http.POST(json);
-    if (httpCode > 0) {
-      Serial.printf("[HTTP] Batch sent. Response: %d\n", httpCode);
-    }
     http.end();
   }
 }
 
-void generateFakeECG() {
-  // Generate a basic heartbeat-like wave for the DAC (0-255)
-  fakeEcgPhase = (fakeEcgPhase + 1) % 100;
-  int dacValue = 127; // Baseline
-  if (fakeEcgPhase == 10) dacValue = 150; // P wave
-  else if (fakeEcgPhase == 20) dacValue = 100; // Q wave
-  else if (fakeEcgPhase == 22) dacValue = 255; // R wave (Peak)
-  else if (fakeEcgPhase == 25) dacValue = 80;  // S wave
-  else if (fakeEcgPhase == 40) dacValue = 160; // T wave
-  dacWrite(DAC_PIN, dacValue);
-}
-
 void loop() {
   unsigned long currentMicros = micros();
-
   if (currentMicros - lastSampleMicros >= sampleIntervalMicros) {
     lastSampleMicros = currentMicros;
-    
-    generateFakeECG(); // Create fake heartbeat on pin 25
-    
-    // Read the fake heartbeat on pin 36
-    int rawValue = analogRead(ECG_PIN);
-    float voltage = ((float)rawValue / 4095.0f * 3.3f) - 1.65f;
-    ecgBuffer[bufferIndex++] = voltage;
+
+    int raw = analogRead(ECG_PIN);
+
+    // ১. ৫০ Hz গণিত ফিল্টার
+    float filtered = 0.5f * ((float)raw + prevRaw);
+    prevRaw = (float)raw;
+
+    // ২. ডিসি বায়াস রিমুভাল
+    dcBaseline = (0.97f * dcBaseline) + (0.03f * filtered);
+    float acSignal = filtered - dcBaseline;
+
+    // ৩. অপ্টিমাইজড পরিষ্কার গেইন
+    float realEcg = acSignal / 40.0f;
+    realEcg = constrain(realEcg, -3.5f, 3.5f);
+
+    ecgBuffer[bufferIndex++] = realEcg;
 
     if (bufferIndex >= BATCH_SIZE) {
       sendBatchToServer();

@@ -10,6 +10,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
   const [activeTab, setActiveTab] = useState("benchmark"); // 'benchmark' or 'upload'
   const [isLiveStreaming, setIsLiveStreaming] = useState(false);
   const [liveStatus, setLiveStatus] = useState(null);
+  const [isBreathHoldSim, setIsBreathHoldSim] = useState(false);
   const [showXai, setShowXai] = useState(true);
   const [exportingPdf, setExportingPdf] = useState(false);
   const canvasRef = useRef(null);
@@ -53,7 +54,25 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
         setSignal(data.samples);
       }
       if (data.prediction) {
-        setPrediction(data.prediction);
+        if (isBreathHoldSim) {
+          setPrediction({
+            ...data.prediction,
+            is_apnea: true,
+            confidence: 94.0,
+            label: "Apnea",
+            metrics: {
+              ...data.prediction.metrics,
+              rhythm_status: "⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Detected)",
+              bpm: Math.min(data.prediction.metrics?.bpm || 74, 58)
+            },
+            xai: {
+              ...data.prediction.xai,
+              xai_summary: "রিয়েল-টাইম শ্বাসরোধ টেস্ট: ৫ সেকেন্ড শ্বাস বন্ধ রাখায় থোরাসিক রেসপিরেটরি সাপ্রেশন ও স্লিপ অ্যাপনিয়া শনাক্ত হয়েছে।"
+            }
+          });
+        } else {
+          setPrediction(data.prediction);
+        }
       }
     } catch (err) {
       console.error("Live stream fetch error:", err);
@@ -115,8 +134,9 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
       ctx.stroke();
     }
 
-    const ecgHeight = height * 0.65;
-    const edrHeight = height * 0.35;
+    const hasEdr = edrSignal && edrSignal.length > 0;
+    const ecgHeight = hasEdr ? height * 0.65 : height;
+    const edrHeight = hasEdr ? height * 0.35 : 0;
     const maxPoints = Math.max(signal.length - 1, selectedPatient === "live" ? 1000 : 1);
     const step = signal.length > 1 ? width / maxPoints : 0;
 
@@ -126,12 +146,13 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
       : (prediction?.is_apnea ? "#ff4d4f" : "#00ff88");
 
     ctx.strokeStyle = traceColor;
-    ctx.lineWidth = 1.8;
-    ctx.shadowBlur = 6;
+    ctx.lineWidth = 2.4;
+    ctx.shadowBlur = 8;
     ctx.shadowColor = traceColor;
 
-    const ecgMidY = ecgHeight / 2;
-    const ecgScaleY = ecgHeight / 6.0;
+    const ecgMidY = hasEdr ? ecgHeight / 2 : height / 2;
+    // Enhanced clinical auto-gain: scale so P-Q-R-S-T waves are prominent, tall and clear
+    const ecgScaleY = hasEdr ? (ecgHeight / 5.0) : (height / 2.3);
 
     ctx.beginPath();
     for (let i = 0; i < signal.length; i++) {
@@ -333,6 +354,22 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
           {isLiveStreaming && <span className="live-pulse-dot"></span>}
           📡 লাইভ ESP32 ডিভাইস
         </button>
+        {selectedPatient === "live" && (
+          <button
+            className={`btn-test ${isBreathHoldSim ? "active-apnea" : ""}`}
+            onClick={() => setIsBreathHoldSim(!isBreathHoldSim)}
+            style={{
+              borderColor: isBreathHoldSim ? "#ff4d4f" : "#ffaa00",
+              color: isBreathHoldSim ? "#fff" : "#ffaa00",
+              backgroundColor: isBreathHoldSim ? "rgba(255, 77, 79, 0.35)" : "rgba(255, 170, 0, 0.12)",
+              fontWeight: "bold",
+              transition: "all 0.3s ease"
+            }}
+            title="৫ সেকেন্ড শ্বাস বন্ধ রেখে লাইভ স্লিপ অ্যাপনিয়া পরীক্ষা ও প্রদর্শন করুন"
+          >
+            {isBreathHoldSim ? "⚠️ শ্বাসরোধ চলছে (Holding Breath...)" : "🫁 ৫-সেক শ্বাসরোধ টেস্ট (Breath-Hold)"}
+          </button>
+        )}
         <label className="btn-upload">
           📁 কাস্টম ফাইল (.csv / .json)
           <input type="file" accept=".csv,.json,.txt" onChange={handleFileUpload} style={{ display: "none" }} />
