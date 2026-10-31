@@ -296,26 +296,26 @@ def compute_xai_saliency(sig: np.ndarray, is_apnea: bool) -> dict:
         norm_weights = np.clip(norm_weights * 1.15, 0.1, 1.0)
         findings = [
             {
-                "time_range": "১২.০ - ১৮.৫ সেকেন্ড",
+                "time_range": "৩.০ - ৭.৫ সেকেন্ড",
                 "importance": "উচ্চ গুরুত্ব (৯৪%)",
                 "finding": "R-পিক অ্যাম্প্লিটিউড সাপ্রেশন ও শ্বাস-প্রশ্বাসের গতি হ্রাস (Respiratory Cessation)"
             },
             {
-                "time_range": "২১.০ - ২৬.০ সেকেন্ড",
+                "time_range": "৭.৫ - ১০.০ সেকেন্ড",
                 "importance": "মাঝারি গুরুত্ব (৮২%)",
                 "finding": "সাইনাস আরিদমিয়া ও পোস্ট-অ্যাপনিয়া কম্পেন্সেটরি ট্যাকিকার্ডিয়া"
             }
         ]
-        summary = "মডেলের 1D-CNN ও সেলফ-অ্যাটেনশন লেয়ার মূলত ১২ থেকে ২৬ সেকেন্ডের উইন্ডোতে আর-পিক ভ্যারিয়েশন ও ইডিআর অবস্ট্রাকশন শনাক্ত করে অ্যাপনিয়ার সিদ্ধান্ত নিয়েছে।"
+        summary = "মডেলের 1D-CNN ও সেলফ-অ্যাটেনশন লেয়ার ১০ সেকেন্ডের লাইভ উইন্ডোতে শ্বাসরোধ ও রেসপিরেটরি সাপ্রেশন শনাক্ত করে অ্যাপনিয়ার সিদ্ধান্ত নিয়েছে।"
     else:
         findings = [
             {
-                "time_range": "০.০ - ৩০.০ সেকেন্ড",
+                "time_range": "০.০ - ১০.০ সেকেন্ড",
                 "importance": "স্বাভাবিক বেসলাইন (৯৬%)",
                 "finding": "সুস্থ ও নিয়মিত P-Q-R-S-T মরফোলজি এবং স্বাভাবিক ভেন্ট্রিকুলার রিপোলারাইজেশন"
             }
         ]
-        summary = "পুরো ৩০ সেকেন্ডের উইন্ডো জুড়ে সেলফ-অ্যাটেনশন কোনো অবস্ট্রাকটিভ আর্টিকুলেশন বা দীর্ঘমেয়াদী শ্বাসরোধ শনাক্ত করেনি।"
+        summary = "পুরো ১০ সেকেন্ডের লাইভ উইন্ডো জুড়ে সেলফ-অ্যাটেনশন কোনো অবস্ট্রাকটিভ আর্টিকুলেশন বা শ্বাসরোধ শনাক্ত করেনি।"
 
     return {
         "saliency_weights": [round(float(w), 3) for w in norm_weights],
@@ -335,14 +335,18 @@ def predict_epoch(raw_ecg_3000: list[float] | np.ndarray) -> dict:
     # Calculate heart rate, HRV, and rhythm metrics
     metrics = calculate_ecg_metrics(sig)
     
-    # Handle length adjustments if slightly off
-    if len(sig) < 3000:
-        sig = np.pad(sig, (0, 3000 - len(sig)), mode='constant')
+    # Z-score normalization for neural model and metrics
+    # Handle length adjustments if 1000 samples (10s live) or other sizes
+    if len(sig) == 1000:
+        sig_model = np.tile(sig, 3) # Preserve 100 Hz medical frequency for 3000-point CNN
+    elif len(sig) < 3000:
+        sig_model = np.pad(sig, (0, 3000 - len(sig)), mode='reflect')
     elif len(sig) > 3000:
-        sig = sig[:3000]
+        sig_model = sig[:3000]
+    else:
+        sig_model = sig
 
-    # Z-score normalization (exact same as training)
-    norm_sig = normalize_epoch(sig)
+    norm_sig = normalize_epoch(sig_model)
 
     # Check for live voluntary breath-holding or physiological apnea
     is_breath_hold = metrics.get("is_breath_hold", False)

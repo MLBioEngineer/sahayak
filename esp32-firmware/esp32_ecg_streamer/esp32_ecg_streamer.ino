@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-// ================= আপনার আসল ওয়াই-ফাই রাউটার =================
+// ================= আপনার ওয়াই-ফাই রাউটার =================
 const char* WIFI_SSID     = "Lucky 13";
 const char* WIFI_PASSWORD = "qwertyuiop";
 
@@ -13,10 +13,10 @@ const char* DEVICE_ID     = "ESP32_AD8232_REAL";
 const int ECG_PIN = 36; 
 
 const int SAMPLE_RATE_HZ = 100; // 100 Hz মেডিকেল স্যাম্পলিং
-const unsigned long sampleIntervalMicros = 1000000 / SAMPLE_RATE_HZ; // 10000 µs
+const unsigned long sampleIntervalMicros = 10000; // 10000 µs (10 ms)
 
-// ৫০ স্যাম্পল ব্যাচ (প্রতি ০.৫ সেকেন্ডে ১ বার ক্লাউডে যাবে)
-const int BATCH_SIZE = 50; 
+// ১০০ স্যাম্পল = ঠিক ১.০ সেকেন্ডের নিখুঁত উইন্ডো (মেমোরি জ্যাম হবে না)
+const int BATCH_SIZE = 100; 
 float ecgBuffer[BATCH_SIZE];
 int bufferIndex = 0;
 
@@ -28,10 +28,10 @@ void setup() {
   Serial.begin(115200);
   delay(500);
 
-  analogReadResolution(12); // ESP32 12-bit ADC (0 - 4095)
-  analogSetAttenuation(ADC_11db); // Full-scale voltage (0 - 3.3V)
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
 
-  Serial.println("\n--- সহায়ক IoT: বড় ও স্পষ্ট P-Q-R-S-T ইসিজি স্ট্রিমিং ---");
+  Serial.println("\n--- সহায়ক IoT: একটানা নন-স্টপ ইসিজি স্ট্রিমিং ---");
   
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
@@ -54,17 +54,24 @@ void sendBatchToServer() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(SERVER_URL);
-    http.setTimeout(1200);
+    http.setTimeout(1500); // টাইমআউট যাতে কখনো হ্যাং না হয়
     http.addHeader("Content-Type", "application/json");
 
+    // কমপ্যাক্ট সিঙ্গেল-ফ্রেম পেলোড (দ্রুত ডেলিভারি)
     String json = "{\"device_id\":\"" + String(DEVICE_ID) + "\",\"samples\":[";
     for (int i = 0; i < BATCH_SIZE; i++) {
-      json += String(ecgBuffer[i], 3);
+      json += String(ecgBuffer[i], 2);
       if (i < BATCH_SIZE - 1) json += ",";
     }
     json += "]}";
 
     int httpCode = http.POST(json);
+    if (httpCode > 0) {
+      Serial.println("🟢 [১০০ স্যাম্পল ক্লাউডে সফল]");
+    } else {
+      Serial.print("⚠️ নেটওয়ার্ক রিট্রাই... কোড: ");
+      Serial.println(httpCode);
+    }
     http.end();
   }
 }
@@ -76,7 +83,7 @@ void loop() {
 
     int raw = analogRead(ECG_PIN);
 
-    // ১. ৫০ Hz নয়েজ ফিল্টার
+    // ১. ৫০ Hz মেইনস নয়েজ ফিল্টার
     float filtered = 0.5f * ((float)raw + prevRaw);
     prevRaw = (float)raw;
 
@@ -84,12 +91,13 @@ void loop() {
     dcBaseline = (0.97f * dcBaseline) + (0.03f * filtered);
     float acSignal = filtered - dcBaseline;
 
-    // ৩. ৩x হাই-গেইন স্কেলিং (P-Q-R-S-T বড় ও স্পষ্ট দেখানোর জন্য /35.0f)
+    // ৩. ৩x হাই-গেইন স্কেলিং (P-Q-R-S-T বড় ও উঁচু দেখানোর জন্য /35.0f)
     float realEcg = acSignal / 35.0f;
     realEcg = constrain(realEcg, -3.5f, 3.5f);
 
     ecgBuffer[bufferIndex++] = realEcg;
 
+    // প্রতি ১০০ স্যাম্পল (১ সেকেন্ড) পর পর ক্লাউডে পাঠানো
     if (bufferIndex >= BATCH_SIZE) {
       sendBatchToServer();
       bufferIndex = 0;

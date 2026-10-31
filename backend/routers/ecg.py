@@ -59,8 +59,8 @@ def get_benchmark(patient_type: str = "apnea"):
 import time
 from collections import deque
 
-# In-memory buffer for real-time ESP32 telemetry (holds up to 30 seconds = 3000 samples @ 100 Hz)
-STREAM_BUFFER = deque(maxlen=3000)
+# In-memory buffer for real-time ESP32 telemetry (holds 10 seconds = 1000 samples @ 100 Hz for ultra-fast reaction)
+STREAM_BUFFER = deque(maxlen=1000)
 LAST_STREAM_TIME = 0.0
 LAST_DEVICE_ID = "ESP32_NODE"
 
@@ -97,8 +97,8 @@ def get_latest_stream():
     prediction = None
     if len(samples_list) >= 100:
         try:
-            # Predict using latest window (up to 3000 samples)
-            window = samples_list[-3000:]
+            # Predict using latest live window (1000 samples = 10 seconds @ 100 Hz)
+            window = samples_list[-1000:]
             prediction = predict_epoch(window)
         except Exception as e:
             prediction = None
