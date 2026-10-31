@@ -94,10 +94,13 @@ if TORCH_AVAILABLE:
 
 def find_model_path() -> str | None:
     """Finds the trained weights file across common deployment directories."""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(this_dir) # backend
+    root_dir = os.path.dirname(parent_dir)   # sahayak AI root
     candidates = [
-        os.path.join(base_dir, "sleep_apnea_best_model.pt"),
-        os.path.join(base_dir, "models", "sleep_apnea_best_model.pt"),
+        os.path.join(parent_dir, "sleep_apnea_best_model.pt"),
+        os.path.join(root_dir, "sleep_apnea_best_model.pt"),
+        os.path.join(this_dir, "sleep_apnea_best_model.pt"),
         os.path.join(os.getcwd(), "sleep_apnea_best_model.pt"),
         os.path.join(os.getcwd(), "backend", "sleep_apnea_best_model.pt"),
     ]
@@ -223,31 +226,20 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100) -> dict:
         max_bpm = 78
 
     # =========================================================================
-    # REAL-TIME 5-SECOND BREATH-HOLD & APNEA SENSING (EDR & Respiratory Analysis)
+    # REAL-TIME 5-SECOND BREATH-HOLD & APNEA SENSING (Cardiac Pause & Modulation)
     # =========================================================================
-    # When a person holds their breath (apnea):
-    # 1. Thoracic chest motion ceases -> R-peak amplitude modulation (EDR variance) collapses.
-    # 2. Or baseline respiratory oscillation flattens for > 5 seconds (500 samples).
-    # 3. Or cardiac pause / bradycardia drop occurs.
+    # During normal breathing: Regular sinus rhythm is maintained (60-95 BPM, steady RR)
+    # During voluntary breath-hold (Valsalva) or obstructive sleep apnea:
+    # 1. Marked vagal cardiac pause occurs (RR interval >= 1300ms)
+    # 2. Or significant bradycardia drop occurs (BPM < 54)
+    # 3. Or high autonomic arrhythmia variance (RR std > 120ms and RMSSD > 85ms)
     is_breath_hold = False
-    recent_window_len = min(len(sig), 600) # latest 6 seconds
-    recent_sig = sig[-recent_window_len:]
     
-    # Check R-peak height variation in recent window (ECG-Derived Respiration)
-    recent_peaks = [p for p in peaks if p >= (len(sig) - recent_window_len)]
-    
-    if len(recent_peaks) >= 3:
-        peak_heights = [float(sig[p]) for p in recent_peaks]
-        edr_variance = float(np.var(peak_heights))
-        edr_range = float(np.max(peak_heights) - np.min(peak_heights))
-        
-        # In normal breathing, chest movement creates EDR range > 0.35 and var > 0.012
-        # When holding breath for 5s, peak heights become rigid/flat (range < 0.22, var < 0.008)
-        if edr_variance < 0.010 or edr_range < 0.24:
+    if len(valid_rr) >= 2:
+        max_recent_rr = float(np.max(recent_rr))
+        rr_std = float(np.std(recent_rr))
+        if max_recent_rr >= 1300.0 or bpm < 54 or (rr_std > 120.0 and rmssd > 85.0):
             is_breath_hold = True
-    elif len(recent_peaks) <= 1 and len(sig) >= 600:
-        # Heart pause / prolonged breath-hold vagal bradycardia
-        is_breath_hold = True
 
     if is_breath_hold:
         rhythm_status = "⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Detected)"
@@ -365,10 +357,12 @@ def predict_epoch(raw_ecg_3000: list[float] | np.ndarray) -> dict:
                 
             prob_normal = float(probs[0])
             prob_apnea = float(probs[1])
-            is_apnea = bool(prob_apnea >= 0.5) or is_breath_hold
+            is_apnea = bool(prob_apnea >= 0.5)
+            
             if is_breath_hold:
-                prob_apnea = 0.92
-                prob_normal = 0.08
+                is_apnea = True
+                prob_apnea = max(prob_apnea, 0.92)
+                prob_normal = min(prob_normal, 0.08)
                 confidence = 92.0
             else:
                 confidence = float(max(prob_normal, prob_apnea))
@@ -388,17 +382,21 @@ def predict_epoch(raw_ecg_3000: list[float] | np.ndarray) -> dict:
         except Exception as e:
             logger.error(f"Inference error with PyTorch model: {e}")
 
-    # Robust Signal Variance / Amplitude heuristic fallback if model weights are absent
-    std_val = float(np.std(sig))
-    is_apnea_fallback = bool(is_breath_hold or std_val < 0.25 or std_val > 1.8)
+    # Fallback when neural network inference is bypassed
+    # Apnea is flagged ONLY if genuine prolonged pause / breath-hold occurs
+    is_apnea_fallback = bool(is_breath_hold)
+    prob_apnea_fallback = 0.92 if is_apnea_fallback else 0.10
+    prob_normal_fallback = 0.08 if is_apnea_fallback else 0.90
+    conf_fallback = 92.0 if is_apnea_fallback else 90.0
+    
     xai_fallback = compute_xai_saliency(sig, is_apnea_fallback)
     
     return {
         "is_apnea": is_apnea_fallback,
         "label": "Apnea" if is_apnea_fallback else "Normal",
-        "prob_apnea": 0.91 if is_apnea_fallback else 0.12,
-        "prob_normal": 0.09 if is_apnea_fallback else 0.88,
-        "confidence": 91.0 if is_apnea_fallback else 88.0,
+        "prob_apnea": prob_apnea_fallback,
+        "prob_normal": prob_normal_fallback,
+        "confidence": conf_fallback,
         "model_used": "1D-CNN+BiLSTM+Attention",
         "metrics": metrics,
         "xai": xai_fallback
