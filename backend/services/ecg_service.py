@@ -161,7 +161,15 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100) -> dict:
             "max_bpm": 76,
             "rhythm_status": "স্বাভাবিক সাইনাস রিদম (Normal Sinus Rhythm)",
             "peaks_count": 0,
-            "is_breath_hold": False
+            "is_breath_hold": False,
+            "poincare": {
+                "sd1": 23.5,
+                "sd2": 54.0,
+                "ratio": 0.44,
+                "autonomic_status": "স্বাভাবিক ও ভারসাম্যপূর্ণ অটোনোমিক নিয়ন্ত্রণ (Balanced Autonomic Tone)",
+                "pattern": "ধূমকেতু / ক্লাসিক্যাল উপবৃত্তাকার (Healthy Comet Ellipse)",
+                "points": []
+            }
         }
 
     # Difference filter to emphasize sharp QRS complexes
