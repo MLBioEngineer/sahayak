@@ -175,12 +175,19 @@ def build_ecg_report_pdf(report_data: dict) -> bytes:
     rr = metrics.get("rr_interval_ms", 833.0)
     rmssd = metrics.get("hrv_rmssd_ms", 35.0)
     rhythm = metrics.get("rhythm_status", "স্বাভাবিক সাইনাস রিদম")
+    poincare = metrics.get("poincare", {})
+    sd1 = poincare.get("sd1", 23.5)
+    sd2 = poincare.get("sd2", 54.0)
+    poincare_ratio = poincare.get("ratio", 0.44)
     
     bio_data = [
         ["Biomarker Parameter", "Observed Value", "Clinical Reference Range", "Interpretation"],
         ["Heart Rate (BPM)", f"{bpm} BPM", "60 - 100 BPM", "Normal resting heart rate" if 60 <= bpm <= 100 else "Altered rhythm"],
         ["Mean RR Interval", f"{rr} ms", "600 - 1000 ms", "Within expected cycle duration"],
         ["HRV (RMSSD)", f"{rmssd} ms", "20 - 65 ms", "Autonomic nervous balance"],
+        ["Poincaré SD1 (Vagal)", f"{sd1} ms", "15 - 45 ms", "Short-term parasympathetic tone"],
+        ["Poincaré SD2 (Sympathetic)", f"{sd2} ms", "35 - 95 ms", "Long-term total autonomic tone"],
+        ["SD1/SD2 Ratio", f"{poincare_ratio}", "0.35 - 0.75", "Autonomic sympathovagal balance"],
         ["Cardiac Rhythm", rhythm, "Normal Sinus Rhythm", "Significant apnea modulation" if is_apnea else "Steady sinus rhythm"],
     ]
     bio_table = Table(bio_data, colWidths=[4.5 * cm, 3.5 * cm, 4.5 * cm, 5.5 * cm])

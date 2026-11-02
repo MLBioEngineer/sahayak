@@ -12,8 +12,10 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
   const [liveStatus, setLiveStatus] = useState(null);
   const [isBreathHoldSim, setIsBreathHoldSim] = useState(false);
   const [showXai, setShowXai] = useState(true);
+  const [showPoincare, setShowPoincare] = useState(true);
   const [exportingPdf, setExportingPdf] = useState(false);
   const canvasRef = useRef(null);
+  const poincareCanvasRef = useRef(null);
   const liveIntervalRef = useRef(null);
 
 
@@ -204,6 +206,125 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
 
     ctx.shadowBlur = 0;
   }, [signal, edrSignal, prediction, selectedPatient]);
+
+  // Draw 2D Poincaré Scatter Plot & Autonomic HRV Ellipse
+  useEffect(() => {
+    const canvas = poincareCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = 38;
+
+    // Clear dark medical canvas background
+    ctx.fillStyle = "#0a1017";
+    ctx.fillRect(0, 0, width, height);
+
+    // Grid bounds: 500ms to 1300ms
+    const minRR = 500;
+    const maxRR = 1300;
+    const mapX = (rr) => padding + ((rr - minRR) / (maxRR - minRR)) * (width - 2 * padding);
+    const mapY = (rr) => (height - padding) - ((rr - minRR) / (maxRR - minRR)) * (height - 2 * padding);
+
+    // Draw Subtle Grid & Axis Ticks
+    ctx.strokeStyle = "rgba(0, 210, 255, 0.08)";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.font = "10px monospace";
+    ctx.textAlign = "center";
+
+    const ticks = [600, 800, 1000, 1200];
+    ticks.forEach(t => {
+      const x = mapX(t);
+      const y = mapY(t);
+
+      // Vertical tick grid
+      ctx.beginPath();
+      ctx.moveTo(x, padding);
+      ctx.lineTo(x, height - padding);
+      ctx.stroke();
+      ctx.fillText(`${t}`, x, height - padding + 14);
+
+      // Horizontal tick grid
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(width - padding, y);
+      ctx.stroke();
+      ctx.fillText(`${t}`, padding - 16, y + 3);
+    });
+
+    // Axis Labels
+    ctx.fillStyle = "#AFAFAF";
+    ctx.font = "11px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("RRₙ (ms)", width / 2, height - 8);
+
+    ctx.save();
+    ctx.translate(14, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("RRₙ₊₁ (ms)", 0, 0);
+    ctx.restore();
+
+    // Identity Line (Line of Identity: y = x)
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(mapX(minRR), mapY(minRR));
+    ctx.lineTo(mapX(maxRR), mapY(maxRR));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const poincare = prediction?.metrics?.poincare;
+    const isApnea = prediction?.is_apnea;
+    const meanRR = prediction?.metrics?.rr_interval_ms || 810;
+    const sd1 = poincare?.sd1 || 23.5;
+    const sd2 = poincare?.sd2 || 54.0;
+    const pts = poincare?.points || [];
+
+    // Scale from RR ms to canvas pixels
+    const scale = (width - 2 * padding) / (maxRR - minRR);
+
+    // Draw Fitted Autonomic Sympathovagal Ellipse
+    const cx = mapX(meanRR);
+    const cy = mapY(meanRR);
+    const radiusX = Math.max(14, sd2 * scale * 1.8);
+    const radiusY = Math.max(9, sd1 * scale * 1.8);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-Math.PI / 4); // 45 degrees along Line of Identity
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    ctx.fillStyle = isApnea ? "rgba(255, 77, 79, 0.12)" : "rgba(0, 210, 255, 0.08)";
+    ctx.fill();
+    ctx.strokeStyle = isApnea ? "rgba(255, 77, 79, 0.55)" : "rgba(0, 210, 255, 0.4)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // Draw Poincaré Scatter Points
+    pts.forEach((pt, idx) => {
+      const px = mapX(pt.x);
+      const py = mapY(pt.y);
+      const isLatest = idx === pts.length - 1;
+
+      ctx.beginPath();
+      ctx.arc(px, py, isLatest ? 5.5 : 3.5, 0, 2 * Math.PI);
+      ctx.fillStyle = isApnea ? "#ff4d4f" : "#00d2ff";
+      ctx.shadowBlur = isLatest ? 10 : 4;
+      ctx.shadowColor = isApnea ? "#ff4d4f" : "#00d2ff";
+      ctx.fill();
+
+      if (isLatest) {
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      }
+    });
+
+    ctx.shadowBlur = 0;
+  }, [prediction, showPoincare]);
 
   function handleFileUpload(e) {
     const file = e.target.files[0];
@@ -407,6 +528,82 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
           </span>
         </div>
       </div>
+
+      {/* 2D Poincaré Scatter Plot & Autonomic HRV Matrix Section */}
+      {prediction?.metrics && (
+        <div className="poincare-container">
+          <div className="poincare-header">
+            <div className="poincare-title">
+              📈 <strong>2D Poincaré স্ক্যাটার প্লট ও অটোনোমিক HRV অ্যানালাইসিস</strong>
+              <span className="poincare-badge-tech">Autonomic Sympathovagal Matrix</span>
+            </div>
+            <button
+              className="xai-toggle-btn"
+              onClick={() => setShowPoincare(!showPoincare)}
+              type="button"
+            >
+              {showPoincare ? "হাইড করুন ▲" : "দেখান ▼"}
+            </button>
+          </div>
+
+          {showPoincare && (
+            <div className="poincare-body">
+              {/* Canvas Plot */}
+              <div className="poincare-plot-wrapper">
+                <canvas
+                  ref={poincareCanvasRef}
+                  width={340}
+                  height={320}
+                  className="poincare-canvas"
+                />
+                <div className="poincare-legend-bar">
+                  <span>🔵 RRₙ বনাম RRₙ₊₁ বিট ডাইনামিক্স</span>
+                  <span>📐 লাইন অব আইডেন্টিটি (y = x)</span>
+                </div>
+              </div>
+
+              {/* Autonomic Metrics Side Cards */}
+              <div className="poincare-metrics-panel">
+                <div className="poincare-stat-card">
+                  <div className="stat-label">SD1 (প্যারাসিমপ্যাথেটিক ভেগাল টোন)</div>
+                  <div className="stat-value">
+                    {prediction.metrics.poincare?.sd1 || 23.5} <span className="stat-unit">ms</span>
+                  </div>
+                  <div className="stat-desc">হার্টরেটের তাৎক্ষণিক ও স্বল্পমেয়াদী ভ্যারিয়্যাবিলিটি</div>
+                </div>
+
+                <div className="poincare-stat-card">
+                  <div className="stat-label">SD2 (সিমপ্যাথেটিক ও মোট অটোনোমিক টোন)</div>
+                  <div className="stat-value">
+                    {prediction.metrics.poincare?.sd2 || 54.0} <span className="stat-unit">ms</span>
+                  </div>
+                  <div className="stat-desc">দীর্ঘমেয়াদী কার্ডিয়াক অটোনোমিক রেগুলেশন</div>
+                </div>
+
+                <div className="poincare-stat-card highlight">
+                  <div className="stat-label">SD1 / SD2 সিমপ্যাথোভ্যাগাল রেশিও</div>
+                  <div className="stat-value ratio-val">
+                    {prediction.metrics.poincare?.ratio || 0.44}
+                  </div>
+                  <div className="stat-desc">
+                    ক্লিনিক্যাল রেফারেন্স: ০.৩৫ - ০.৭৫ (স্বাভাবিক ব্যালেন্স)
+                  </div>
+                </div>
+
+                <div className="poincare-status-box">
+                  <div className="status-title">🩺 কার্ডিয়াক অটোনোমিক নার্ভাস সিস্টেম স্ট্যাটাস:</div>
+                  <div className={`status-highlight ${prediction.is_apnea ? "status-danger" : "status-safe"}`}>
+                    {prediction.metrics.poincare?.autonomic_status || "স্বাভাবিক ও ভারসাম্যপূর্ণ অটোনোমিক নিয়ন্ত্রণ (Balanced Tone)"}
+                  </div>
+                  <div className="pattern-sub">
+                    <strong>প্লট প্যাটার্ন:</strong> {prediction.metrics.poincare?.pattern || "ক্লাসিক্যাল উপবৃত্তাকার (Healthy Comet Ellipse)"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Explainable AI (XAI) Saliency Heatmap Section */}
       {prediction?.xai && (

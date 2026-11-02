@@ -752,6 +752,163 @@
 }
 
 /* ========================================================= */
+/* 2D Poincaré Scatter Plot & Autonomic HRV Matrix           */
+/* ========================================================= */
+.poincare-container {
+  background: #171717;
+  border: 1px solid rgba(0, 210, 255, 0.25);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.poincare-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.poincare-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: #FFFFFF;
+}
+
+.poincare-badge-tech {
+  font-size: 11px;
+  background: rgba(0, 255, 136, 0.15);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-family: monospace;
+}
+
+.poincare-body {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 820px) {
+  .poincare-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.poincare-plot-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #0a1017;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.poincare-canvas {
+  width: 100%;
+  max-width: 340px;
+  height: 320px;
+  border-radius: 8px;
+}
+
+.poincare-legend-bar {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 11px;
+  color: #888888;
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+.poincare-metrics-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.poincare-stat-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.poincare-stat-card.highlight {
+  border-color: rgba(0, 210, 255, 0.35);
+  background: rgba(0, 210, 255, 0.04);
+}
+
+.poincare-stat-card .stat-label {
+  font-size: 11.5px;
+  color: #AFAFAF;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.poincare-stat-card .stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 3px 0;
+}
+
+.poincare-stat-card .stat-unit {
+  font-size: 13px;
+  color: #00d2ff;
+  font-weight: 400;
+}
+
+.poincare-stat-card .stat-value.ratio-val {
+  color: #00ff88;
+}
+
+.poincare-stat-card .stat-desc {
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.poincare-status-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.poincare-status-box .status-title {
+  font-size: 12px;
+  color: #AFAFAF;
+  margin-bottom: 6px;
+}
+
+.poincare-status-box .status-highlight {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  line-height: 20px;
+}
+
+.status-highlight.status-safe {
+  color: #00ff88;
+}
+
+.status-highlight.status-danger {
+  color: #ff4d4f;
+}
+
+.poincare-status-box .pattern-sub {
+  font-size: 12.5px;
+  color: #BBBBBB;
+}
+
+/* ========================================================= */
 /* THEME: LIGHT (Clinical Hospital Mode)                     */
 /* ========================================================= */
 .app.theme-light {
@@ -865,5 +1022,32 @@
   background: #F7FAFA;
   color: #1A2825;
   border-color: #CCD6D4;
+}
+
+/* Light Mode Overrides for Poincaré */
+.app.theme-light .poincare-container {
+  background: #F9FBFA;
+  border-color: #B2E5F5;
+}
+.app.theme-light .poincare-title {
+  color: #0F3D3E;
+}
+.app.theme-light .poincare-plot-wrapper {
+  background: #FFFFFF;
+  border-color: #DCE3E2;
+}
+.app.theme-light .poincare-stat-card {
+  background: #FFFFFF;
+  border-color: #E2E8E7;
+}
+.app.theme-light .poincare-stat-card .stat-value {
+  color: #0F3D3E;
+}
+.app.theme-light .poincare-status-box {
+  background: #FFFFFF;
+  border-color: #E2E8E7;
+}
+.app.theme-light .poincare-status-box .pattern-sub {
+  color: #2F3E3C;
 }
 
