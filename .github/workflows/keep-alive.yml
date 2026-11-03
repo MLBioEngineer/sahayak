@@ -1,0 +1,14 @@
+name: Keep Render Backend Warm
+on:
+  schedule:
+    # Runs every 14 minutes to prevent Render free tier from sleeping (sleeps at 15m)
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Sahayak Backend /health
+        run: |
+          curl -s --max-time 30 https://sahayak-lkhm.onrender.com/health || echo "Ping attempted"

@@ -1,7 +1,19 @@
 import { createClient } from '@supabase/supabase-js'
 
-// These environment variables need to be set in Vercel or a local .env file
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL_HERE'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY_HERE'
+const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const isSupabaseConfigured = Boolean(
+  rawUrl && rawUrl.startsWith("http") && !rawUrl.includes("YOUR_SUPABASE_URL_HERE")
+);
+
+// Fallback dummy credentials when Supabase is not configured
+const supabaseUrl = isSupabaseConfigured ? rawUrl : 'https://dummy.supabase.co';
+const supabaseAnonKey = isSupabaseConfigured ? rawKey : 'dummy-key';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: isSupabaseConfigured,
+    autoRefreshToken: isSupabaseConfigured,
+  }
+});

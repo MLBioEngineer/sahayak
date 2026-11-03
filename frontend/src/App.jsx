@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import ChatWindow from "./components/ChatWindow";
 import SleepApneaMonitor from "./components/SleepApneaMonitor";
 import AuthScreen from "./components/AuthScreen";
-import { supabase } from "./api/supabase";
+import { supabase, isSupabaseConfigured } from "./api/supabase";
 import { Analytics } from "@vercel/analytics/react";
 import "./App.css";
 
@@ -10,8 +10,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("ecg"); // "chat" or "ecg"
   const [chatPrompt, setChatPrompt] = useState("");
   const [user, setUser] = useState(null);
-  const [isGuest, setIsGuest] = useState(false);
-  const [authChecking, setAuthChecking] = useState(true);
+  // Default to guest mode so the web app loads instantly without blocking auth dialogs
+  const [isGuest, setIsGuest] = useState(() => {
+    const saved = localStorage.getItem("sahayak_guest");
+    return saved !== null ? saved === "true" : true;
+  });
+  const [authChecking, setAuthChecking] = useState(() => isSupabaseConfigured);
   const [theme, setTheme] = useState(() => localStorage.getItem("sahayak_theme") || "dark");
 
   function toggleTheme() {
@@ -20,21 +24,46 @@ export default function App() {
     localStorage.setItem("sahayak_theme", nextTheme);
   }
 
+  // Pre-warm Render backend on initial mount
   useEffect(() => {
-    // Check active session on initial load
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-      }
-      setAuthChecking(false);
-    });
+    const API_BASE = import.meta.env.VITE_API_BASE || "https://sahayak-lkhm.onrender.com";
+    fetch(`${API_BASE}/health`).catch(() => {});
+  }, []);
 
-    // Listen for auth changes (login/logout)
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setAuthChecking(false);
+      return;
+    }
+
+    let isDone = false;
+    const timer = setTimeout(() => {
+      if (!isDone) setAuthChecking(false);
+    }, 600);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        isDone = true;
+        clearTimeout(timer);
+        if (session?.user) {
+          setUser(session.user);
+        }
+        setAuthChecking(false);
+      })
+      .catch(() => {
+        isDone = true;
+        clearTimeout(timer);
+        setAuthChecking(false);
+      });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   function handleDiscussWithAi(promptText) {
@@ -42,10 +71,17 @@ export default function App() {
     setActiveTab("chat");
   }
 
+  function handleSetGuest(val) {
+    setIsGuest(val);
+    localStorage.setItem("sahayak_guest", val ? "true" : "false");
+  }
+
   async function handleLogout() {
-    await supabase.auth.signOut();
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut().catch(() => {});
+    }
     setUser(null);
-    setIsGuest(false);
+    handleSetGuest(true);
   }
 
   if (authChecking) {
@@ -57,7 +93,7 @@ export default function App() {
       <div className={`app theme-${theme} auth-page-bg`}>
         <AuthScreen 
           onLogin={(userData) => setUser(userData)} 
-          onGuest={() => setIsGuest(true)} 
+          onGuest={() => handleSetGuest(true)} 
         />
         <Analytics />
       </div>
@@ -79,7 +115,7 @@ export default function App() {
           </button>
           <button 
             className="text-btn" 
-            onClick={user ? handleLogout : () => setIsGuest(false)}
+            onClick={user ? handleLogout : () => handleSetGuest(false)}
             type="button"
           >
             {user ? "Log out" : "Sign in"}
