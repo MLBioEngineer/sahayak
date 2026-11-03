@@ -180,9 +180,10 @@ function getFallbackBenchmarkData(patientType = "apnea") {
 }
 
 export default function SleepApneaMonitor({ onDiscussWithAi }) {
-  const [signal, setSignal] = useState([]);
-  const [edrSignal, setEdrSignal] = useState([]);
-  const [prediction, setPrediction] = useState(null);
+  // Pre-seed state with verified benchmark data so waveform and vitals render on Frame 0
+  const [signal, setSignal] = useState(() => getFallbackBenchmarkData("apnea").ecg_signal);
+  const [edrSignal, setEdrSignal] = useState(() => getFallbackBenchmarkData("apnea").edr_signal);
+  const [prediction, setPrediction] = useState(() => getFallbackBenchmarkData("apnea").model_prediction);
   const [loading, setLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState("apnea");
   const [activeTab, setActiveTab] = useState("benchmark"); // 'benchmark' or 'upload'
@@ -328,8 +329,6 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
       ctx.textAlign = "center";
       ctx.fillText(loading ? "⏳ সিগন্যাল লোড হচ্ছে..." : "সিগন্যাল ডেটা প্রস্তুত হচ্ছে...", width / 2, height / 2);
       return;
-    }
-      ctx.stroke();
     }
 
     const hasEdr = edrSignal && edrSignal.length > 0;
