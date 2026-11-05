@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "../api/supabase";
+import { supabase, isSupabaseConfigured } from "../api/supabase";
 
 export default function AuthScreen({ onLogin, onGuest }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,6 +14,19 @@ export default function AuthScreen({ onLogin, onGuest }) {
     setErrorMsg("");
 
     try {
+      // 1. If Supabase cloud keys are not configured in Vercel env, handle instant local authentication
+      if (!isSupabaseConfigured) {
+        const localUser = {
+          email,
+          id: "local_" + Date.now(),
+          user_metadata: { name: email.split("@")[0] }
+        };
+        localStorage.setItem("sahayak_mock_user", JSON.stringify(localUser));
+        onLogin(localUser);
+        return;
+      }
+
+      // 2. Cloud Supabase authentication
       if (isLogin) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -22,11 +35,23 @@ export default function AuthScreen({ onLogin, onGuest }) {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (data.user) {
-          alert("Registration successful! You are now logged in.");
+          alert("রেজিস্ট্রেশন সফল হয়েছে! আপনি সফলভাবে লগইন হয়েছেন।");
           onLogin(data.user);
         }
       }
     } catch (err) {
+      // Graceful fallback if cloud Supabase project is paused or offline
+      if (err.message && (err.message.includes("fetch") || err.message.includes("NetworkError"))) {
+        const localUser = {
+          email,
+          id: "local_" + Date.now(),
+          user_metadata: { name: email.split("@")[0] }
+        };
+        localStorage.setItem("sahayak_mock_user", JSON.stringify(localUser));
+        alert("ক্লাউড Supabase ডাটাবেজ সংযোগে বিঘ্ন ঘটেছে। লোকাল সেশনে লগইন সম্পন্ন করা হয়েছে।");
+        onLogin(localUser);
+        return;
+      }
       setErrorMsg(err.message || "An error occurred during authentication.");
     } finally {
       setLoading(false);

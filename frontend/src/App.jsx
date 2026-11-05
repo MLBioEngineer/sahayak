@@ -9,7 +9,17 @@ import "./App.css";
 export default function App() {
   const [activeTab, setActiveTab] = useState("ecg"); // "chat" or "ecg"
   const [chatPrompt, setChatPrompt] = useState("");
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem("sahayak_mock_user");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   // Default to guest mode so the web app loads instantly without blocking auth dialogs
   const [isGuest, setIsGuest] = useState(() => {
     const saved = localStorage.getItem("sahayak_guest");
@@ -80,6 +90,7 @@ export default function App() {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut().catch(() => {});
     }
+    localStorage.removeItem("sahayak_mock_user");
     setUser(null);
     handleSetGuest(true);
   }

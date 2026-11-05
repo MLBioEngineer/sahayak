@@ -12,3 +12,5 @@ frontend/dist/
 # System
 .vscode/
 .DS_Store
+.vercel
+.env*
