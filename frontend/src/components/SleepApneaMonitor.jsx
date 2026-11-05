@@ -594,330 +594,300 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
   }
 
   return (
-    <div className="ecg-monitor-card">
-      <div className="ecg-header">
-        <div>
-          <h3>🫀 স্লিপ অ্যাপনিয়া ও ইসিজি অ্যানালাইজার</h3>
-          <p className="subtitle">
-            PhysioNet Apnea-ECG ভ্যালিডেটেড 1D-CNN + BiLSTM + Attention মডেল (৮৪.১% অ্যাকুরেসি)
+    <div className="ecg-monitor-card icu-bento-container">
+      {/* 1. Header Bar: Title, Clinical Subtitle, Status Badge, and 1-Click PDF Button */}
+      <div className="icu-header-bar">
+        <div className="icu-header-left">
+          <div className="icu-title-row">
+            <span className="icu-pulse-icon">🫀</span>
+            <h3 className="icu-title">সহায়ক স্লিপ অ্যাপনিয়া ও ইসিজি মনিটরিং স্টেশন</h3>
+            <span className="icu-badge-version">v2.4 ICU Suite</span>
+          </div>
+          <p className="icu-subtitle">
+            PhysioNet Apnea-ECG ভ্যালিডেটেড 1D-CNN + BiLSTM + Attention মডেল (৮৪.১% অ্যাকুরেসি) • 100 Hz টেলিম্যাট্রি
           </p>
+        </div>
+
+        <div className="icu-header-actions">
+          <div className={`icu-telemetry-badge ${selectedPatient === "live" ? (liveStatus?.is_active ? "online" : "waiting") : "online"}`}>
+            <span className="live-pulse-dot"></span>
+            <span>
+              {selectedPatient === "live"
+                ? (liveStatus?.is_active ? `ESP32 সক্রিয় (${liveStatus.samples_count} স্যাম্পল)` : "ESP32 অপেক্ষায়...")
+                : "PhysioNet ভ্যালিডেটেড স্ট্রিম"}
+            </span>
+          </div>
+
+          <button
+            className="icu-btn-pdf"
+            onClick={handleExportPdf}
+            disabled={exportingPdf}
+            type="button"
+            title="অফিসিয়াল মেডিকেল ডায়াগনস্টিক রিপোর্ট ডাউনলোড করুন"
+          >
+            {exportingPdf ? "⏳ রিপোর্ট তৈরি..." : "📄 ডায়াগনস্টিক PDF"}
+          </button>
         </div>
       </div>
 
-      {/* Physiological Vitals Ribbon (BPM, HRV, RR, Rhythm) */}
+      {/* 2. Top Control & Patient Navigation Toolbar */}
+      <div className="icu-nav-toolbar">
+        <div className="icu-patient-group">
+          <span className="icu-toolbar-label">রোগী / মোড:</span>
+          <button
+            className={`icu-pill-btn ${selectedPatient === "apnea" ? "active-apnea" : ""}`}
+            onClick={() => loadBenchmark("apnea")}
+            disabled={loading}
+          >
+            🔴 রোগী ১: তীব্র স্লিপ অ্যাপনিয়া
+          </button>
+          <button
+            className={`icu-pill-btn ${selectedPatient === "normal" ? "active-normal" : ""}`}
+            onClick={() => loadBenchmark("normal")}
+            disabled={loading}
+          >
+            🟢 রোগী ২: সুস্থ স্বাভাবিক ইসিজি
+          </button>
+          <button
+            className={`icu-pill-btn ${selectedPatient === "live" ? "active-live" : ""}`}
+            onClick={startLiveStream}
+            disabled={loading}
+          >
+            {isLiveStreaming && <span className="live-pulse-dot"></span>}
+            📡 লাইভ ESP32 ডিভাইস
+          </button>
+          {selectedPatient === "live" && (
+            <button
+              className={`icu-pill-btn breath-btn ${isBreathHoldSim ? "active-breath" : ""}`}
+              onClick={() => setIsBreathHoldSim(!isBreathHoldSim)}
+              title="৫ সেকেন্ড শ্বাস বন্ধ রেখে লাইভ স্লিপ অ্যাপনিয়া পরীক্ষা ও প্রদর্শন করুন"
+            >
+              {isBreathHoldSim ? "⚠️ শ্বাসরোধ চলছে..." : "🫁 ৫-সেক শ্বাসরোধ টেস্ট"}
+            </button>
+          )}
+        </div>
+
+        <div className="icu-upload-group">
+          <label className="icu-upload-label">
+            📁 কাস্টম ফাইল (.csv / .json)
+            <input type="file" accept=".csv,.json,.txt" onChange={handleFileUpload} style={{ display: "none" }} />
+          </label>
+        </div>
+      </div>
+
+      {/* 3. Main Bento Grid (Left Column 64%: ECG + XAI; Right Column 36%: Diagnosis + Poincaré) */}
+      <div className="icu-bento-grid">
+        
+        {/* Left Column: ECG Oscilloscope & XAI Attention */}
+        <div className="icu-col-left">
+          {/* Waveform Card */}
+          <div className="icu-card icu-scope-card">
+            <div className="icu-card-header">
+              <div className="icu-card-title">
+                <span className="icu-dot-cyan"></span>
+                <strong>LEAD II ইসিজি অসিলোস্কোপ (100 Hz)</strong>
+                {edrSignal.length > 0 && <span className="icu-badge-edr">+ EDR Respiration</span>}
+              </div>
+              <div className="icu-window-info">
+                {selectedPatient === "live"
+                  ? `লাইভ উইন্ডো: ${Math.round(signal.length / 100)} সেকেন্ড (${signal.length} স্যাম্পল)`
+                  : `উইন্ডো: ${Math.round(signal.length / 100) || 10} সেকেন্ড (${(signal.length || 1000).toLocaleString("bn-BD")} স্যাম্পল)`}
+              </div>
+            </div>
+
+            <div className="canvas-wrapper">
+              <canvas ref={canvasRef} width={800} height={300} className="ecg-canvas" />
+            </div>
+          </div>
+
+          {/* Explainable AI (XAI) Saliency Heatmap Card */}
+          {prediction?.xai && (
+            <div className="icu-card icu-xai-card">
+              <div className="icu-card-header">
+                <div className="icu-card-title">
+                  <span>🧠</span>
+                  <strong>Explainable AI (XAI) অ্যাটেনশন ও স্যালিয়েন্সি</strong>
+                  <span className="xai-badge-tech">1D-GradCAM</span>
+                </div>
+                <button
+                  className="xai-toggle-btn"
+                  onClick={() => setShowXai(!showXai)}
+                  type="button"
+                >
+                  {showXai ? "হাইড করুন ▲" : "দেখান ▼"}
+                </button>
+              </div>
+
+              {showXai && (
+                <div className="icu-xai-body">
+                  <div className="xai-heatmap-track">
+                    {prediction.xai.saliency_weights?.map((w, idx) => {
+                      const r = prediction.is_apnea ? 255 : 0;
+                      const g = prediction.is_apnea ? Math.round(77 + (1 - w) * 100) : 210;
+                      const b = prediction.is_apnea ? 79 : 255;
+                      return (
+                        <div
+                          key={idx}
+                          className="xai-heatmap-cell"
+                          style={{
+                            backgroundColor: `rgba(${r}, ${g}, ${b}, ${w})`,
+                            opacity: Math.max(0.3, w),
+                          }}
+                          title={`Time: ${(idx * 0.3).toFixed(1)}s, Attention: ${(w * 100).toFixed(0)}%`}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  <div className="xai-timeline-markers">
+                    <span>০.০ সেক</span>
+                    <span>২.৫ সেক</span>
+                    <span>৫.০ সেক</span>
+                    <span>৭.৫ সেক</span>
+                    <span>১০.০ সেক</span>
+                  </div>
+
+                  <div className="xai-summary-text">
+                    <strong>🔍 ক্লিনিক্যাল ব্যাখ্যা: </strong>
+                    {prediction.xai.xai_summary}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: AI Diagnosis & 2D Poincaré Autonomic Matrix */}
+        <div className="icu-col-right">
+          
+          {/* Primary AI Diagnostic Verdict Card */}
+          {prediction && (
+            <div className={`icu-card icu-verdict-card ${prediction.is_apnea ? "verdict-apnea" : "verdict-normal"}`}>
+              <div className="verdict-header">
+                <span className="verdict-tag">
+                  <span className="verdict-indicator-dot"></span> এআই ডায়াগনস্টিক রেজাল্ট
+                </span>
+                <span className="verdict-confidence">
+                  কনফিডেন্স: <strong>{prediction.confidence}%</strong>
+                </span>
+              </div>
+
+              <h4 className="verdict-title">
+                {prediction.is_apnea
+                  ? "⚠️ স্লিপ অ্যাপনিয়া ইভেন্ট শনাক্ত (Apnea Detected)"
+                  : "✅ স্বাভাবিক সাইনাস রিদম (Normal Sinus)"}
+              </h4>
+
+              <p className="verdict-desc">
+                {prediction.is_apnea
+                  ? "১০ সেকেন্ডের উইন্ডোতে আর-পিক সাপ্রেশন এবং ভেগাল কার্ডিয়াক পজ পাওয়া গেছে, যা অবস্ট্রাকটিভ স্লিপ অ্যাপনিয়ার নির্দেশক।"
+                  : "ইসিজি মরফোলজি এবং হার্টরেট ভ্যারিয়্যাবিলিটি সম্পূর্ণ স্বাভাবিক সীমার মধ্যে রয়েছে। কোনো অ্যাপনিয়া ঝুঁকি নেই।"}
+              </p>
+
+              <button className="icu-btn-discuss" onClick={handleDiscuss} type="button">
+                💬 সহায়ক এআই-এর সাথে আলোচনা করুন
+              </button>
+            </div>
+          )}
+
+          {/* 2D Poincaré Plot & Autonomic Matrix */}
+          {prediction?.metrics && (
+            <div className="icu-card icu-poincare-card">
+              <div className="icu-card-header">
+                <div className="icu-card-title">
+                  <span>📈</span>
+                  <strong>2D Poincaré স্ক্যাটার প্লট</strong>
+                  <span className="poincare-badge-tech">Autonomic Matrix</span>
+                </div>
+                <button
+                  className="xai-toggle-btn"
+                  onClick={() => setShowPoincare(!showPoincare)}
+                  type="button"
+                >
+                  {showPoincare ? "হাইড করুন ▲" : "দেখান ▼"}
+                </button>
+              </div>
+
+              {showPoincare && (
+                <div className="icu-poincare-body">
+                  <div className="poincare-canvas-container">
+                    <canvas ref={poincareCanvasRef} width={340} height={260} className="poincare-canvas" />
+                    <div className="poincare-legend-bar">
+                      <span>🔵 RRₙ বনাম RRₙ₊₁</span>
+                      <span>📐 লাইন অব আইডেন্টিটি (y = x)</span>
+                    </div>
+                  </div>
+
+                  <div className="poincare-mini-stats">
+                    <div className="poincare-mini-card">
+                      <span className="mini-label">SD1 (ভেগাল টোন):</span>
+                      <span className="mini-val cyan-val">{prediction.metrics.poincare?.sd1 || 23.5} ms</span>
+                    </div>
+                    <div className="poincare-mini-card">
+                      <span className="mini-label">SD2 (সিমপ্যাথেটিক):</span>
+                      <span className="mini-val amber-val">{prediction.metrics.poincare?.sd2 || 54.0} ms</span>
+                    </div>
+                    <div className="poincare-mini-card full-width">
+                      <span className="mini-label">SD1/SD2 রেশিও:</span>
+                      <span className="mini-val purple-val">{prediction.metrics.poincare?.ratio || 0.44}</span>
+                      <span className="mini-hint">(রেফারেন্স: ০.৩৫ - ০.৭৫)</span>
+                    </div>
+                  </div>
+
+                  <div className={`poincare-status-pill ${prediction.is_apnea ? "status-danger" : "status-safe"}`}>
+                    <span className="status-dot"></span>
+                    <span>{prediction.metrics.poincare?.autonomic_status || "স্বাভাবিক ও ভারসাম্যপূর্ণ অটোনোমিক নিয়ন্ত্রণ"}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+
+      </div>
+
+      {/* 4. Bottom Vitals Dock (4 Physiological Biomarkers) */}
       {prediction?.metrics && (
-        <div className="vitals-ribbon">
-          <div className="vital-card">
+        <div className="icu-vitals-dock">
+          <div className="icu-vital-item">
             <span className="vital-icon heart-pulse">❤️</span>
             <div className="vital-content">
-              <div className="vital-label">হার্ট রেট (HR)</div>
+              <span className="vital-label">হার্ট রেট (HR)</span>
               <div className="vital-val">
                 {prediction.metrics.bpm} <span className="vital-unit">BPM</span>
               </div>
             </div>
           </div>
-          <div className="vital-card">
+
+          <div className="icu-vital-item">
             <span className="vital-icon">⏱️</span>
             <div className="vital-content">
-              <div className="vital-label">গড় RR ব্যবধান</div>
+              <span className="vital-label">গড় RR ব্যবধান</span>
               <div className="vital-val">
                 {prediction.metrics.rr_interval_ms} <span className="vital-unit">ms</span>
               </div>
             </div>
           </div>
-          <div className="vital-card">
+
+          <div className="icu-vital-item">
             <span className="vital-icon">📊</span>
             <div className="vital-content">
-              <div className="vital-label">HRV (RMSSD)</div>
+              <span className="vital-label">HRV (RMSSD)</span>
               <div className="vital-val">
                 {prediction.metrics.hrv_rmssd_ms} <span className="vital-unit">ms</span>
               </div>
             </div>
           </div>
-          <div className="vital-card rhythm-card">
+
+          <div className="icu-vital-item rhythm-item">
             <span className="vital-icon">🩺</span>
             <div className="vital-content">
-              <div className="vital-label">কার্ডিয়াক রিদম</div>
-              <div className="vital-val rhythm-status-text">
+              <span className="vital-label">কার্ডিয়াক রিদম</span>
+              <div className={`vital-val rhythm-val ${prediction.is_apnea ? "text-danger" : "text-safe"}`}>
                 {prediction.metrics.rhythm_status}
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Control Buttons for Demo / Benchmarks / Hardware */}
-      <div className="ecg-controls">
-        <button
-          className={`btn-test ${selectedPatient === "apnea" ? "active-apnea" : ""}`}
-          onClick={() => loadBenchmark("apnea")}
-          disabled={loading}
-        >
-          🔴 রোগী ১: তীব্র স্লিপ অ্যাপনিয়া (PhysioNet Apnea Sample)
-        </button>
-        <button
-          className={`btn-test ${selectedPatient === "normal" ? "active-normal" : ""}`}
-          onClick={() => loadBenchmark("normal")}
-          disabled={loading}
-        >
-          🟢 রোগী ২: সুস্থ স্বাভাবিক ইসিজি (Normal Control)
-        </button>
-        <button
-          className={`btn-test ${selectedPatient === "live" ? "active-live" : ""}`}
-          onClick={startLiveStream}
-          disabled={loading}
-        >
-          {isLiveStreaming && <span className="live-pulse-dot"></span>}
-          📡 লাইভ ESP32 ডিভাইস
-        </button>
-        {selectedPatient === "live" && (
-          <button
-            className={`btn-test ${isBreathHoldSim ? "active-apnea" : ""}`}
-            onClick={() => setIsBreathHoldSim(!isBreathHoldSim)}
-            style={{
-              borderColor: isBreathHoldSim ? "#ff4d4f" : "#ffaa00",
-              color: isBreathHoldSim ? "#fff" : "#ffaa00",
-              backgroundColor: isBreathHoldSim ? "rgba(255, 77, 79, 0.35)" : "rgba(255, 170, 0, 0.12)",
-              fontWeight: "bold",
-              transition: "all 0.3s ease"
-            }}
-            title="৫ সেকেন্ড শ্বাস বন্ধ রেখে লাইভ স্লিপ অ্যাপনিয়া পরীক্ষা ও প্রদর্শন করুন"
-          >
-            {isBreathHoldSim ? "⚠️ শ্বাসরোধ চলছে (Holding Breath...)" : "🫁 ৫-সেক শ্বাসরোধ টেস্ট (Breath-Hold)"}
-          </button>
-        )}
-        <label className="btn-upload">
-          📁 কাস্টম ফাইল (.csv / .json)
-          <input type="file" accept=".csv,.json,.txt" onChange={handleFileUpload} style={{ display: "none" }} />
-        </label>
-      </div>
-
-      {/* Live Stream Telemetry Banner */}
-      {selectedPatient === "live" && (
-        <div className={`live-status-bar ${liveStatus?.is_active ? "online" : "waiting"}`}>
-          <div>
-            {liveStatus?.is_active ? (
-              <>
-                <span className="live-pulse-dot"></span>
-                <strong>ESP32 ডিভাইস সক্রিয়</strong> ({liveStatus.device_id || "ESP32_SIM_01"} • {liveStatus.samples_count} স্যাম্পল প্রাপ্ত)
-              </>
-            ) : (
-              <>
-                ⏳ <strong>ESP32 সিগন্যালের অপেক্ষায়...</strong> {liveStatus?.samples_count > 0 ? `(শেষ ডেটা ${liveStatus.last_received_seconds_ago} সেক আগে)` : "(ESP32 চালুর পর স্বয়ংক্রিয়ভাবে গ্রাফ দেখাবে)"}
-              </>
-            )}
-          </div>
-          <div>লাইভ টেলিম্যাট্রি (100 Hz Wi-Fi Stream)</div>
-        </div>
-      )}
-
-      {/* ECG Canvas Waveform Display */}
-      <div className="canvas-wrapper">
-        <canvas ref={canvasRef} width={800} height={320} className="ecg-canvas" />
-        <div className="canvas-overlay">
-          <span>লেড: Single-Lead ECG (100 Hz) {edrSignal.length > 0 && " + EDR"}</span>
-          <span>
-            {selectedPatient === "live"
-              ? `লাইভ উইন্ডো: ${Math.round(signal.length / 100)} সেকেন্ড (${signal.length} স্যাম্পল)`
-              : `উইন্ডো: ${Math.round(signal.length / 100) || 10} সেকেন্ড (${(signal.length || 1000).toLocaleString("bn-BD")} স্যাম্পল)`}
-          </span>
-        </div>
-      </div>
-
-      {/* 2D Poincaré Scatter Plot & Autonomic HRV Matrix Section */}
-      {prediction?.metrics && (
-        <div className="poincare-container">
-          <div className="poincare-header">
-            <div className="poincare-title">
-              📈 <strong>2D Poincaré স্ক্যাটার প্লট ও অটোনোমিক HRV অ্যানালাইসিস</strong>
-              <span className="poincare-badge-tech">Autonomic Sympathovagal Matrix</span>
-            </div>
-            <button
-              className="xai-toggle-btn"
-              onClick={() => setShowPoincare(!showPoincare)}
-              type="button"
-            >
-              {showPoincare ? "হাইড করুন ▲" : "দেখান ▼"}
-            </button>
-          </div>
-
-          {showPoincare && (
-            <div className="poincare-body">
-              {/* Canvas Plot */}
-              <div className="poincare-plot-wrapper">
-                <canvas
-                  ref={poincareCanvasRef}
-                  width={340}
-                  height={320}
-                  className="poincare-canvas"
-                />
-                <div className="poincare-legend-bar">
-                  <span>🔵 RRₙ বনাম RRₙ₊₁ বিট ডাইনামিক্স</span>
-                  <span>📐 লাইন অব আইডেন্টিটি (y = x)</span>
-                </div>
-              </div>
-
-              {/* Autonomic Metrics Side Cards */}
-              <div className="poincare-metrics-panel">
-                <div className="poincare-stat-card">
-                  <div className="stat-label">SD1 (প্যারাসিমপ্যাথেটিক ভেগাল টোন)</div>
-                  <div className="stat-value">
-                    {prediction.metrics.poincare?.sd1 || 23.5} <span className="stat-unit">ms</span>
-                  </div>
-                  <div className="stat-desc">হার্টরেটের তাৎক্ষণিক ও স্বল্পমেয়াদী ভ্যারিয়্যাবিলিটি</div>
-                </div>
-
-                <div className="poincare-stat-card">
-                  <div className="stat-label">SD2 (সিমপ্যাথেটিক ও মোট অটোনোমিক টোন)</div>
-                  <div className="stat-value">
-                    {prediction.metrics.poincare?.sd2 || 54.0} <span className="stat-unit">ms</span>
-                  </div>
-                  <div className="stat-desc">দীর্ঘমেয়াদী কার্ডিয়াক অটোনোমিক রেগুলেশন</div>
-                </div>
-
-                <div className="poincare-stat-card highlight">
-                  <div className="stat-label">SD1 / SD2 সিমপ্যাথোভ্যাগাল রেশিও</div>
-                  <div className="stat-value ratio-val">
-                    {prediction.metrics.poincare?.ratio || 0.44}
-                  </div>
-                  <div className="stat-desc">
-                    ক্লিনিক্যাল রেফারেন্স: ০.৩৫ - ০.৭৫ (স্বাভাবিক ব্যালেন্স)
-                  </div>
-                </div>
-
-                <div className="poincare-status-box">
-                  <div className="status-title">🩺 কার্ডিয়াক অটোনোমিক নার্ভাস সিস্টেম স্ট্যাটাস:</div>
-                  <div className={`status-highlight ${prediction.is_apnea ? "status-danger" : "status-safe"}`}>
-                    {prediction.metrics.poincare?.autonomic_status || "স্বাভাবিক ও ভারসাম্যপূর্ণ অটোনোমিক নিয়ন্ত্রণ (Balanced Tone)"}
-                  </div>
-                  <div className="pattern-sub">
-                    <strong>প্লট প্যাটার্ন:</strong> {prediction.metrics.poincare?.pattern || "ক্লাসিক্যাল উপবৃত্তাকার (Healthy Comet Ellipse)"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Explainable AI (XAI) Saliency Heatmap Section */}
-      {prediction?.xai && (
-        <div className="xai-container">
-          <div className="xai-header">
-            <div className="xai-title">
-              🧠 <strong>Explainable AI (XAI) অ্যাটেনশন ও স্যালিয়েন্সি ম্যাপ</strong>
-              <span className="xai-badge-tech">1D-GradCAM & BiLSTM-Attention</span>
-            </div>
-            <button
-              className="xai-toggle-btn"
-              onClick={() => setShowXai(!showXai)}
-              type="button"
-            >
-              {showXai ? "হাইড করুন ▲" : "দেখান ▼"}
-            </button>
-          </div>
-
-          {showXai && (
-            <div className="xai-body">
-              <div className="xai-heatmap-label">
-                <span>⏱️ সময়রেখা (০ - ৩০ সেকেন্ড) বরাবর নিউরাল নেটওয়ার্কের ফোকাস/মনোযোগের মাত্রা:</span>
-                <span className="xai-legend">
-                  <span className="legend-box low"></span> কম
-                  <span className="legend-box high"></span> উচ্চ গুরুত্ব
-                </span>
-              </div>
-
-              {/* Heatmap Track */}
-              <div className="xai-heatmap-track">
-                {prediction.xai.saliency_weights?.map((w, idx) => {
-                  const r = prediction.is_apnea ? 255 : 0;
-                  const g = prediction.is_apnea ? Math.round(77 + (1 - w) * 100) : 210;
-                  const b = prediction.is_apnea ? 79 : 255;
-                  return (
-                    <div
-                      key={idx}
-                      className="xai-heatmap-cell"
-                      style={{
-                        backgroundColor: `rgba(${r}, ${g}, ${b}, ${w})`,
-                        opacity: Math.max(0.25, w),
-                      }}
-                      title={`Time: ${(idx * 0.3).toFixed(1)}s, Attention: ${(w * 100).toFixed(0)}%`}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className="xai-timeline-markers">
-                <span>০.০ সেক</span>
-                <span>২.৫ সেক</span>
-                <span>৫.০ সেক</span>
-                <span>৭.৫ সেক</span>
-                <span>১০.০ সেক</span>
-              </div>
-
-              {/* Explanation Text & Region Breakdown */}
-              <div className="xai-explanation-box">
-                <p className="xai-summary-text">
-                  <strong>🔍 ক্লিনিক্যাল ব্যাখ্যা: </strong>
-                  {prediction.xai.xai_summary}
-                </p>
-
-                {prediction.xai.salient_regions && prediction.xai.salient_regions.length > 0 && (
-                  <div className="xai-regions-grid">
-                    {prediction.xai.salient_regions.map((reg, idx) => (
-                      <div key={idx} className="xai-region-card">
-                        <div className="xai-reg-header">
-                          <span className="xai-time-pill">{reg.time_range}</span>
-                          <span className="xai-importance-pill">{reg.importance}</span>
-                        </div>
-                        <div className="xai-reg-desc">{reg.finding}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Diagnostic Prediction Results Card */}
-      {prediction && (
-        <div className={`prediction-card ${prediction.is_apnea ? "risk-high" : "risk-safe"}`}>
-          <div className="prediction-main">
-            <div className="status-badge">
-              {prediction.is_apnea ? (
-                <>⚠️ স্লিপ অ্যাপনিয়া ইভেন্ট শনাক্ত হয়েছে (Apnea Event Detected)</>
-              ) : (
-                <>✅ স্বাভাবিক হৃৎস্পন্দন ও শ্বাস-প্রশ্বাস (Normal Respiration)</>
-              )}
-            </div>
-            <div className="confidence-pill">
-              কনফিডেন্স: <strong>{prediction.confidence}%</strong>
-            </div>
-          </div>
-
-          <div className="prediction-details">
-            <p>
-              <strong>ক্লিনিক্যাল মূল্যায়ন: </strong>
-              {prediction.is_apnea
-                ? "১০ সেকেন্ডের এই লাইভ উইন্ডোতে আর-পিক ভ্যারিয়্যাবিলিটি এবং ইডিআর (EDR) রেসপিরেটরি সাপ্রেশন পাওয়া গেছে, যা অবস্ট্রাকটিভ স্লিপ অ্যাপনিয়ার নির্দেশক।"
-                : "ইসিজি মরফোলজি এবং হার্টরেট ভ্যারিয়্যাবিলিটি সম্পূর্ণ স্বাভাবিক সীমার মধ্যে রয়েছে। কোনো স্লিপ অ্যাপনিয়ার ঝুঁকি পাওয়া যায়নি।"}
-            </p>
-          </div>
-
-          <div className="action-button-group">
-            <button className="btn-discuss" onClick={handleDiscuss} type="button">
-              💬 সহায়ক এআই-এর সাথে রিপোর্ট নিয়ে আলোচনা করুন
-            </button>
-            <button
-              className="btn-download-pdf"
-              onClick={handleExportPdf}
-              disabled={exportingPdf}
-              type="button"
-            >
-              {exportingPdf ? "⏳ রিপোর্ট তৈরি হচ্ছে..." : "📄 ক্লিনিক্যাল ডায়াগনস্টিক রিপোর্ট ডাউনলোড (PDF)"}
-            </button>
           </div>
         </div>
       )}

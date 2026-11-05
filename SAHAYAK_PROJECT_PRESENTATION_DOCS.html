@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sahayak AI - Presentation & Technical Specification</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #1a202c;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background-color: #f8fafc;
+    }
+    .doc-card {
+      background: #ffffff;
+      padding: 48px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      border: 1px solid #e2e8f0;
+    }
+    h1 { color: #0f3d3e; font-size: 28px; border-bottom: 2px solid #0f3d3e; padding-bottom: 12px; margin-top: 0; }
+    h2 { color: #1e3a8a; font-size: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-top: 32px; }
+    h3 { color: #0369a1; font-size: 16px; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; }
+    th { background-color: #f1f5f9; color: #0f172a; font-weight: 600; }
+    tr:nth-child(even) { background-color: #f8fafc; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; background: #e0f2fe; color: #0369a1; }
+    .highlight-box { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 16px; border-radius: 0 8px 8px 0; margin: 20px 0; }
+    .slide-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    .slide-title { font-weight: bold; color: #1e3a8a; font-size: 16px; margin-bottom: 8px; }
+    pre { background: #0f172a; color: #38bdf8; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+    code { font-family: Consolas, monospace; }
+  </style>
+</head>
+<body>
+<div class="doc-card">
+  <h1>Project: সহায়ক (Sahayak)</h1>
+  <p><strong>Bengali Medical AI Chatbot & IoT-Driven Real-Time Sleep Apnea Detection System</strong><br>
+  <em>Official Technical Specification & Presentation Deck Companion</em></p>
+
+  <div class="highlight-box">
+    <strong>Executive Pitch:</strong> Sahayak is an affordable (~$25 USD) edge-IoT healthcare system that continuously acquires single-lead ECG biopotential signals at 100 Hz, detects Obstructive Sleep Apnea (OSA) using a hybrid 1D-CNN + BiLSTM + Attention deep neural network (84.1% accuracy), provides non-linear 2D Poincaré HRV analytics, and delivers native Bengali conversational triage via a self-hosted open-weights LLM.
+  </div>
+
+  <h2>1. Hardware Architecture & Bill of Materials (BOM)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Model / Specification</th>
+        <th>Functional Role</th>
+        <th>Est. Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Microcontroller</strong></td>
+        <td>ESP32 Dev Module (ESP-WROOM-32)</td>
+        <td>240 MHz Dual-Core, 12-bit ADC, Wi-Fi 802.11 b/g/n telemetry streaming.</td>
+        <td>$4.50</td>
+      </tr>
+      <tr>
+        <td><strong>ECG Sensor</strong></td>
+        <td>Analog Devices AD8232</td>
+        <td>Single-lead analog front-end (AFE), 2-pole high-pass filter, RLD amplifier.</td>
+        <td>$3.50</td>
+      </tr>
+      <tr>
+        <td><strong>Electrodes</strong></td>
+        <td>Ag/AgCl Disposable Pre-gelled</td>
+        <td>3-Lead Einthoven Lead II placement (RA, LA, RL ground reference).</td>
+        <td>$1.00</td>
+      </tr>
+      <tr>
+        <td><strong>Lead Cable</strong></td>
+        <td>3.5mm Medical Audio Jack to 3-Snap Leads</td>
+        <td>Shielded biopotential transmission cable.</td>
+        <td>$2.50</td>
+      </tr>
+      <tr>
+        <td><strong>Wiring & Power</strong></td>
+        <td>Breadboard & Jumpers (3.3V Power Rail)</td>
+        <td>Interconnection and 3.3V regulated power rail from ESP32.</td>
+        <td>$2.00</td>
+      </tr>
+      <tr>
+        <td colspan="3"><strong>Total Hardware Cost</strong></td>
+        <td><strong>~$13.50 - $20.00</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Wiring Schematic</h3>
+  <ul>
+    <li><code>AD8232 OUTPUT</code> &rarr; <code>ESP32 GPIO 36 (VP / ADC1_CH0)</code></li>
+    <li><code>AD8232 3.3V</code> &rarr; <code>ESP32 3V3</code> (Regulated 3.3V rail only; never 5V)</li>
+    <li><code>AD8232 GND</code> &rarr; <code>ESP32 GND</code> (Common Ground)</li>
+  </ul>
+
+  <h2>2. Embedded Firmware & IoT Stack</h2>
+  <ul>
+    <li><strong>Sampling Frequency:</strong> 100 Hz (10,000 &mu;s hardware micros loop).</li>
+    <li><strong>Digital Signal Processing:</strong> On-device 50 Hz digital notch filter (eliminates AC mains hum) and moving-average thoracic baseline wander correction.</li>
+    <li><strong>Transmission Protocol:</strong> HTTP/REST streaming with 100-sample batches (1-second packets) to optimize memory buffer and prevent lwIP socket fragmentation.</li>
+  </ul>
+
+  <h2>3. Machine Learning & Deep Neural Network Pipeline</h2>
+  <ul>
+    <li><strong>Validated Dataset:</strong> PhysioNet Apnea-ECG Database (continuous 100 Hz single-lead overnight PSG recordings from 35 subjects).</li>
+    <li><strong>Architecture:</strong>
+      <ol>
+        <li><strong>1D-CNN:</strong> Extracts local morphological QRS, P, and T-wave features (Conv1d &rarr; BatchNorm &rarr; GELU &rarr; MaxPool).</li>
+        <li><strong>Bidirectional LSTM (BiLSTM):</strong> Tracks long-term temporal dependencies, capturing cyclical bradycardia-tachycardia patterns across epochs.</li>
+        <li><strong>Self-Attention Layer:</strong> Dynamically pools features focusing on respiratory collapse episodes.</li>
+        <li><strong>Dense Classifier:</strong> Softmax outputting binary Apnea vs Normal classification.</li>
+      </ol>
+    </li>
+    <li><strong>Subject-Wise Accuracy:</strong> <strong>84.1%</strong></li>
+    <li><strong>Explainable AI (XAI):</strong> 1D-GradCAM attention saliency maps showing clinicians the exact seconds that prompted the diagnosis.</li>
+  </ul>
+
+  <h2>4. Biomedical Signal Processing & Non-Linear HRV Analysis</h2>
+  <ul>
+    <li><strong>Time-Domain Metrics:</strong> Heart Rate (BPM), RR Interval (ms), HRV RMSSD (parasympathetic vagal tone), SDNN.</li>
+    <li><strong>ECG-Derived Respiration (EDR):</strong> Derived from QRS complex area and R-peak height modulation.</li>
+    <li><strong>2D Poincar&eacute; Scatter Plot (RR<sub>n</sub> vs RR<sub>n+1</sub>):</strong>
+      <ul>
+        <li><code>SD1</code>: Short-term beat-to-beat variability (vagal parasympathetic tone).</li>
+        <li><code>SD2</code>: Long-term variability (sympathetic + vagal tone).</li>
+        <li><code>SD1/SD2 Ratio</code>: Sympathovagal balance index.</li>
+        <li>Fitted autonomic ellipse rotated -45&deg; along the identity line (y = x).</li>
+      </ul>
+    </li>
+    <li><strong>5-Second Breath-Hold Demonstration:</strong> Enables live demonstration of physiological cardiac pauses during voluntary breath cessation.</li>
+  </ul>
+
+  <h2>5. Full-Stack Cloud & Software Infrastructure</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Technologies Used</th>
+        <th>Key Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Frontend</strong></td>
+        <td>React 18, Vite, HTML5 2D Canvas</td>
+        <td>High-performance 60 FPS medical waveform oscilloscope, Poincar&eacute; visualizer.</td>
+      </tr>
+      <tr>
+        <td><strong>Backend API</strong></td>
+        <td>FastAPI, Uvicorn, Python 3.10+</td>
+        <td>High-speed REST API, circular in-memory telemetry buffer (deque).</td>
+      </tr>
+      <tr>
+        <td><strong>Local Medical LLM</strong></td>
+        <td>Llama-3.2-3B / Qwen2.5-3B (Ollama)</td>
+        <td>Native Bengali clinical consultation, zero 3rd-party API reliance.</td>
+      </tr>
+      <tr>
+        <td><strong>Report Generator</strong></td>
+        <td>ReportLab (Python)</td>
+        <td>Automated publication-grade clinical diagnostic PDF export.</td>
+      </tr>
+      <tr>
+        <td><strong>Cloud Deployment</strong></td>
+        <td>Vercel (Frontend) + Render (Backend)</td>
+        <td>Global Edge CDN and managed containerized cloud execution.</td>
+      </tr>
+      <tr>
+        <td><strong>Keep-Alive Daemon</strong></td>
+        <td>GitHub Actions Workflow</td>
+        <td>Scheduled 14-minute pinger preventing Render free container cold-starts.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>6. Slide-by-Slide Presentation Guide (10 Slides)</h2>
+  
+  <div class="slide-card">
+    <div class="slide-title">Slide 1: Title & Introduction</div>
+    <p>Project: সহায়ক (Sahayak) — AI-Powered Sleep Apnea Detection & Bengali Health Assistant.<br>
+    <em>Subtitle: An End-to-End Edge-IoT & Deep Learning Healthcare Ecosystem.</em></p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 2: Problem Statement & Motivation</div>
+    <p>Nearly 1 billion adults suffer from Obstructive Sleep Apnea. Hospital Polysomnography costs $1,000 - $3,000 and is inaccessible to rural populations. Millions of Bengali speakers lack localized medical guidance.</p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 3: Proposed System Solution</div>
+    <p>Present the 3-pillar ecosystem: Low-cost ($20) Wearable IoT Node &rarr; Cloud Deep Learning Engine (1D-CNN+BiLSTM+Attention) &rarr; Native Bengali Medical AI Chatbot.</p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 4: Hardware & Biomedical Acquisition</div>
+    <p>Detail the ESP32 + AD8232 module with 3 Lead-II surface electrodes. Highlight the 100 Hz medical sampling rate and on-chip 50 Hz digital notch filter.</p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 5: Deep Learning & Explainable AI (XAI)</div>
+    <p>Explain the PhysioNet benchmark validation, the 84.1% subject-wise accuracy, and how 1D-GradCAM saliency heatmaps verify clinical transparency for physicians.</p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 6: Non-Linear Heart Dynamics (2D Poincar&eacute; Plot)</div>
+    <p>Explain the autonomic sympathovagal matrix: SD1, SD2, SD1/SD2 ratio, and how the phase-space scatter plot differentiates healthy sinus rhythm from sleep apnea surges.</p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 7: Native Bengali Medical LLM & Clinical PDF</div>
+    <p>Demonstrate the self-hosted Llama-3.2 SLM running without external API costs, providing conversational health guidance and formal downloadable diagnostic reports.</p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 8: Live System Demonstration</div>
+    <p>Showcase real-time 100 Hz ECG waveform streaming and the interactive 5-second breath-hold simulation trigger for live judging.</p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 9: Competitive Advantage & Social Impact</div>
+    <p>Compare $20 Sahayak hardware vs $1,500+ hospital PSG. Highlight rural home screening and maternal/geriatric sleep health democratization.</p>
+  </div>
+
+  <div class="slide-card">
+    <div class="slide-title">Slide 10: Conclusion & Future Roadmap</div>
+    <p>Multi-lead expansion, dual-channel SpO2 integration, and clinical trials with pulmonary medicine departments. Open floor for Q&A.</p>
+  </div>
+
+</div>
+</body>
+</html>
