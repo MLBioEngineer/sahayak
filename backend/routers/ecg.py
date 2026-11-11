@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
-from services.ecg_service import predict_epoch, analyze_session, generate_benchmark_signal
+from services.ecg_service import predict_epoch, analyze_session, generate_benchmark_signal, extract_edr
 
 router = APIRouter()
 
@@ -95,13 +95,16 @@ def get_latest_stream():
     samples_list = list(STREAM_BUFFER)
     
     prediction = None
+    edr_signal = None
     if len(samples_list) >= 100:
         try:
             # Predict using latest live window (1000 samples = 10 seconds @ 100 Hz)
             window = samples_list[-1000:]
             prediction = predict_epoch(window)
+            edr_signal = extract_edr(window)
         except Exception as e:
             prediction = None
+            edr_signal = None
 
     return {
         "is_active": is_active,
@@ -109,6 +112,7 @@ def get_latest_stream():
         "last_received_seconds_ago": round(current_time - LAST_STREAM_TIME, 1) if LAST_STREAM_TIME > 0 else None,
         "samples_count": len(samples_list),
         "samples": samples_list,
+        "edr_signal": edr_signal,
         "prediction": prediction
     }
 

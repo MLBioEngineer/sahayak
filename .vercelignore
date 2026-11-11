@@ -1,0 +1,7 @@
+backend
+esp32-firmware
+*.pt
+*.ipynb
+*.pdf
+.git
+node_modules
