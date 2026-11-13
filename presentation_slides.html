@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project সহায়ক (Sahayak) • Complete Project Presentation Slide Deck</title>
+  <style>
+    :root {
+      --bg: #070B10;
+      --card-bg: #0D1520;
+      --card-border: #1E2D3D;
+      --primary: #0F3D3E;
+      --accent-cyan: #00D2FF;
+      --accent-green: #00E676;
+      --accent-coral: #FF4D4F;
+      --accent-amber: #FFB300;
+      --accent-purple: #A855F7;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #030609;
+      color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+    }
+
+    /* Presentation Header Toolbar */
+    .top-toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 52px;
+      background: rgba(13, 21, 32, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 1000;
+    }
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-title span.badge {
+      background: rgba(0, 210, 255, 0.15);
+      color: var(--accent-cyan);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      border: 1px solid rgba(0, 210, 255, 0.3);
+    }
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .tool-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .tool-btn:hover {
+      background: rgba(0, 210, 255, 0.15);
+      color: #FFFFFF;
+      border-color: var(--accent-cyan);
+    }
+    .slide-counter {
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+    }
+
+    /* Progress Bar */
+    .progress-bar-container {
+      position: fixed;
+      top: 52px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.05);
+      z-index: 1000;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+      width: 5%;
+      transition: width 0.3s ease;
+    }
+
+    /* Slide Viewport & Stage */
+    .viewport {
+      position: absolute;
+      top: 55px;
+      bottom: 60px;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .slide-deck {
+      position: relative;
+      width: 100%;
+      max-width: 1320px;
+      height: 100%;
+      max-height: 742px; /* 16:9 ratio */
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 44px 56px;
+      display: none;
+      flex-direction: column;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      overflow-y: auto;
+    }
+    .slide.active {
+      display: flex;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Slide Anatomy */
+    .slide-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent-cyan);
+      margin-bottom: 6px;
+    }
+    .slide-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: #FFFFFF;
+      line-height: 1.25;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+    .slide-title span.accent {
+      color: var(--accent-cyan);
+    }
+    .slide-desc {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 24px;
+      max-width: 1000px;
+    }
+
+    /* Slide Content Grids */
+    .slide-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      flex: 1;
+    }
+    .slide-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      flex: 1;
+    }
+    .slide-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      flex: 1;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+    .card.highlight {
+      border-color: rgba(0, 210, 255, 0.4);
+      background: linear-gradient(180deg, rgba(0, 210, 255, 0.05) 0%, var(--card-bg) 100%);
+    }
+    .card-header-icon {
+      font-size: 22px;
+      color: var(--accent-cyan);
+      margin-bottom: 4px;
+    }
+    .card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .card p {
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+    .card strong { color: #FFFFFF; }
+
+    /* Bullet List */
+    .slide-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .slide-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #CBD5E1;
+    }
+    .slide-list li .bullet {
+      color: var(--accent-cyan);
+      font-weight: 900;
+      margin-top: 1px;
+    }
+
+    /* Key Metric Box */
+    .metric-badge-box {
+      background: rgba(0, 230, 118, 0.08);
+      border: 1px solid rgba(0, 230, 118, 0.3);
+      border-radius: 10px;
+      padding: 14px 18px;
+      text-align: center;
+    }
+    .metric-badge-box .metric-num {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent-green);
+    }
+    .metric-badge-box .metric-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    /* Code & Terminal Block */
+    .code-box {
+      background: #04070A;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: 'Consolas', 'Fira Code', monospace;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: #A5F3FC;
+      overflow-x: auto;
+    }
+    .code-box .c-dim { color: #64748B; }
+    .code-box .c-kw { color: #F472B6; font-weight: bold; }
+    .code-box .c-func { color: #38BDF8; }
+    .code-box .c-str { color: #34D399; }
+
+    /* Tables */
+    .slide-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .slide-table th, .slide-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--card-border);
+      text-align: left;
+    }
+    .slide-table th {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+    .slide-table tr.top-row {
+      background: rgba(0, 210, 255, 0.1);
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .slide-table tr.top-row td:first-child {
+      color: var(--accent-cyan);
+    }
+
+    /* Bottom Control Bar */
+    .bottom-controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: rgba(13, 21, 32, 0.95);
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 1000;
+    }
+    .nav-buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav-btn {
+      background: linear-gradient(135deg, #00D2FF, #0088CC);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .nav-btn.secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #FFFFFF;
+      border: 1px solid var(--card-border);
+    }
+    .nav-btn.secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Speaker Notes Drawer */
+    .speaker-notes-panel {
+      position: fixed;
+      bottom: 60px;
+      left: 0;
+      right: 0;
+      background: #0A1118;
+      border-top: 2px solid var(--accent-cyan);
+      padding: 16px 28px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #E2E8F0;
+      display: none;
+      z-index: 999;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .speaker-notes-panel.open { display: block; }
+    .speaker-notes-panel strong { color: var(--accent-cyan); }
+
+    /* Overview Grid Mode */
+    .overview-overlay {
+      position: fixed;
+      inset: 52px 0 0 0;
+      background: rgba(4, 7, 10, 0.95);
+      backdrop-filter: blur(16px);
+      z-index: 1500;
+      padding: 30px;
+      display: none;
+      overflow-y: auto;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .overview-overlay.active { display: grid; }
+    .thumbnail-card {
+      background: var(--card-bg);
+      border: 2px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .thumbnail-card:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 210, 255, 0.3);
+    }
+    .thumbnail-card.current {
+      border-color: var(--accent-green);
+    }
+    .thumb-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+    .thumb-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #FFFFFF;
+      line-height: 1.3;
+    }
+
+    /* Print Presentation (Export as PDF) */
+    @media print {
+      body {
+        overflow: visible !important;
+        height: auto !important;
+        background: #FFFFFF !important;
+        color: #000000 !important;
+      }
+      .top-toolbar, .progress-bar-container, .bottom-controls, .speaker-notes-panel, .overview-overlay {
+        display: none !important;
+      }
+      .viewport {
+        position: static !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+      .slide-deck {
+        border: none !important;
+        box-shadow: none !important;
+        max-width: 100% !important;
+        max-height: none !important;
+        background: none !important;
+        overflow: visible !important;
+      }
+      .slide {
+        display: flex !important;
+        opacity: 1 !important;
+        transform: none !important;
+        position: relative !important;
+        page-break-after: always !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        padding: 40px !important;
+        background: #070B10 !important;
+        color: #F8FAFC !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      @page {
+        size: 16in 9in landscape;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="top-toolbar">
+    <div class="brand-title">
+      <span>🫀 Project সহায়ক (Sahayak)</span>
+      <span class="badge">Capstone Engineering 2026</span>
+    </div>
+    <div class="toolbar-actions">
+      <button class="tool-btn" id="btnNotes" onclick="toggleNotes()">
+        <span>📝</span> Speaker Notes (N)
+      </button>
+      <button class="tool-btn" id="btnOverview" onclick="toggleOverview()">
+        <span>🔲</span> Slide Grid (O)
+      </button>
+      <button class="tool-btn" onclick="window.print()">
+        <span>🖨️</span> Save as PDF
+      </button>
+      <button class="tool-btn" id="btnFullscreen" onclick="toggleFullscreen()">
+        <span>⛶</span> Fullscreen (F)
+      </button>
+      <div class="slide-counter" id="slideIndicator">01 / 20</div>
+    </div>
+  </header>
+
+  <!-- Progress Bar -->
+  <div class="progress-bar-container">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <!-- Slide Stage -->
+  <main class="viewport">
+    <div class="slide-deck">
+
+      <!-- ==================== SLIDE 1: Title Slide ==================== -->
+      <section class="slide active" data-title="Title & Project Overview" data-notes="Welcome judges and faculty. Today I present Project Sahayak: an end-to-end wearable IoT and Deep Learning system designed to decentralize clinical sleep apnea diagnosis from single-lead ECG.">
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+          <div style="font-size: 42px; margin-bottom: 12px;">🫀 📡 🧠</div>
+          <div class="slide-tag">Biomedical Engineering &amp; Healthcare AI Capstone 2026</div>
+          <h1 style="font-size: 38px; font-weight: 800; color: #FFFFFF; line-height: 1.2; margin-bottom: 16px; max-width: 980px;">
+            <span style="color: var(--accent-cyan);">Project সহায়ক (Sahayak):</span> IoT-Driven Real-Time Sleep Apnea Detection from Single-Lead ECG via Deep 1D-CNN + BiLSTM + Attention Network
+          </h1>
+          <p style="font-size: 17px; color: var(--text-muted); max-width: 850px; margin-bottom: 30px; line-height: 1.5;">
+            An End-to-End Clinical-Grade Platform Integrating Dual ECG+EDR Respiration Telemetry, Autonomic HRV Poincaré Analysis, and Bengali Medical AI Assistance
+          </p>
+          
+          <div style="display: flex; gap: 20px; align-items: center; justify-content: center; margin-bottom: 24px;">
+            <div style="background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); border-radius: 30px; padding: 6px 18px; font-size: 13px;">
+              👨‍💻 <strong>Fazle Ilahi</strong> (MLBioEngineer)
+            </div>
+            <div style="background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); border-radius: 30px; padding: 6px 18px; font-size: 13px;">
+              🏛️ <strong>Department of Biomedical Engineering</strong>
+            </div>
+            <div style="background: rgba(0,210,255,0.1); border: 1px solid rgba(0,210,255,0.3); border-radius: 30px; padding: 6px 18px; font-size: 13px; color: var(--accent-cyan);">
+              🌐 <strong>sahayak-medai.vercel.app</strong>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: var(--text-dim);">
+            Press <kbd style="background: #1E2D3D; padding: 2px 6px; border-radius: 4px; color: #FFF;">→</kbd> or <kbd style="background: #1E2D3D; padding: 2px 6px; border-radius: 4px; color: #FFF;">Space</kbd> to proceed • Press <kbd style="background: #1E2D3D; padding: 2px 6px; border-radius: 4px; color: #FFF;">F</kbd> for Fullscreen
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 2: Executive Summary ==================== -->
+      <section class="slide" data-title="Executive Summary &amp; Vision" data-notes="Highlight the 3 primary pillars: IoT wearable acquisition, Deep neural diagnostic inference, and native localized patient triage.">
+        <div class="slide-tag">Overview</div>
+        <h2 class="slide-title">Executive Summary &amp; Project Vision</h2>
+        <p class="slide-desc">Project Sahayak solves the worldwide clinical barrier of sleep apnea diagnosis by replacing bulky $2,500 overnight hospital sleep studies with an affordable $15 IoT wearable and clinical-grade deep learning.</p>
+        
+        <div class="slide-grid-3">
+          <div class="card highlight">
+            <div class="card-header-icon">⚡</div>
+            <h3>1. Ultra-Low-Cost IoT Telemetry</h3>
+            <p>ESP32 dual-core microprocessor paired with Analog Devices AD8232 ECG analog front-end streaming high-precision 100 Hz Lead-II electrocardiogram data via zero-jitter Wi-Fi batching.</p>
+          </div>
+          <div class="card highlight">
+            <div class="card-header-icon">🧠</div>
+            <h3>2. SleepApneaNet Deep Learning</h3>
+            <p>1D-CNN multi-scale feature extractor + 2-layer Bidirectional LSTM + Multi-Head Self-Attention achieving <strong>84.1% Accuracy</strong> and <strong>0.884 ROC-AUC</strong> on the benchmark PhysioNet dataset.</p>
+          </div>
+          <div class="card highlight">
+            <div class="card-header-icon">🫀</div>
+            <h3>3. Dual ECG + EDR Diagnostics</h3>
+            <p>Simultaneous ECG-Derived Respiration (EDR) extraction detecting respiratory flatline during apnea events, coupled with nonlinear Poincaré autonomic HRV analysis and Bengali medical AI guidance.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 3: Clinical Background & The Silent Epidemic ==================== -->
+      <section class="slide" data-title="Clinical Problem: Obstructive Sleep Apnea" data-notes="Emphasize that OSA is not just snoring; it is a vascular killer that spikes sympathetic surges and leads to fatal myocardial infarctions.">
+        <div class="slide-tag">Clinical Background</div>
+        <h2 class="slide-title">The Silent Epidemic: Obstructive Sleep Apnea (OSA)</h2>
+        <p class="slide-desc">Obstructive Sleep Apnea is a chronic sleep-related breathing disorder characterized by repetitive pharyngeal airway collapse during sleep.</p>
+
+        <div class="slide-grid-2">
+          <div class="card">
+            <h3>Pathophysiology &amp; Systemic Impact</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>Upper Airway Collapse:</strong> Pharyngeal tissue relaxes, creating partial (hypopnea) or complete (apnea) airway obstruction lasting 10 to 60+ seconds.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Nocturnal Hypoxemia:</strong> Arterial blood oxygen saturation ($SpO_2$) crashes dramatically, starving brain and cardiac tissue of oxygen.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Sympathetic Autonomic Surges:</strong> Suffocation triggers acute adrenaline spikes, precipitating severe nocturnal arrhythmias and hypertension.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Cardiovascular Morbidity:</strong> Untreated OSA multiplies stroke risk by 3.8×, heart failure by 2.4×, and causes excessive daytime fatigue and vehicular accidents.</span></li>
+            </ul>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="metric-badge-box">
+              <div class="metric-num">~1,000,000,000</div>
+              <div class="metric-lbl">People Affected Worldwide (Lancet Respiratory Medicine)</div>
+            </div>
+            <div class="metric-badge-box" style="background: rgba(255, 77, 79, 0.08); border-color: rgba(255, 77, 79, 0.3);">
+              <div class="metric-num" style="color: var(--accent-coral);">&gt; 80%</div>
+              <div class="metric-lbl">Remain Completely Undiagnosed Due to Testing Inaccessibility</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 4: Current Clinical Bottlenecks ==================== -->
+      <section class="slide" data-title="The Clinical Bottleneck: PSG vs Home Care" data-notes="Compare Polysomnography (PSG) drawbacks: expensive, intrusive, long waitlists, zero home accessibility in developing regions.">
+        <div class="slide-tag">Clinical Challenge</div>
+        <h2 class="slide-title">The Gold-Standard Bottleneck: Polysomnography (PSG)</h2>
+        <p class="slide-desc">Current gold-standard diagnosis requires in-laboratory overnight Polysomnography (PSG), creating an insurmountable clinical bottleneck for general populations.</p>
+
+        <div class="slide-grid-2">
+          <div class="card" style="border-color: rgba(255, 77, 79, 0.35);">
+            <h3 style="color: var(--accent-coral);">⚠️ Traditional Polysomnography (PSG)</h3>
+            <ul class="slide-list">
+              <li><span class="bullet" style="color: var(--accent-coral);">✖</span><span><strong>Exorbitant Cost:</strong> $1,000 to $2,500 per single overnight test.</span></li>
+              <li><span class="bullet" style="color: var(--accent-coral);">✖</span><span><strong>Extreme Intrusiveness:</strong> 22+ wired skin electrodes (EEG, EOG, EMG, ECG, nasal airflow, chest straps) preventing natural sleep.</span></li>
+              <li><span class="bullet" style="color: var(--accent-coral);">✖</span><span><strong>Crippling Waiting Queues:</strong> 6 to 12 months waiting lists at major tertiary hospitals.</span></li>
+              <li><span class="bullet" style="color: var(--accent-coral);">✖</span><span><strong>Geographic Inequity:</strong> Non-existent in semi-urban and rural healthcare clinics.</span></li>
+            </ul>
+          </div>
+
+          <div class="card highlight">
+            <h3 style="color: var(--accent-green);">✅ The Sahayak Telemedicine Paradigm</h3>
+            <ul class="slide-list">
+              <li><span class="bullet" style="color: var(--accent-green);">✔</span><span><strong>Sub-$20 Total Cost:</strong> Accessible to every low- and middle-income family.</span></li>
+              <li><span class="bullet" style="color: var(--accent-green);">✔</span><span><strong>Single-Lead Comfort:</strong> 3 lightweight adhesive chest electrodes (Lead II).</span></li>
+              <li><span class="bullet" style="color: var(--accent-green);">✔</span><span><strong>Continuous Real-Time Screening:</strong> Immediate results streamed to browser or cloud.</span></li>
+              <li><span class="bullet" style="color: var(--accent-green);">✔</span><span><strong>Automated PDF Triage:</strong> Generates formalized clinical diagnostic reports for doctors.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 5: 4-Tier Telemedicine Architecture ==================== -->
+      <section class="slide" data-title="System Architecture (4 Tiers)" data-notes="Walk judges through the 4 layers: physical IoT node, FastAPI cloud gateway, neural inference pipeline, and interactive web dashboard.">
+        <div class="slide-tag">Engineering Design</div>
+        <h2 class="slide-title">4-Tier Closed-Loop Telemedicine Architecture</h2>
+        <p class="slide-desc">Sahayak coordinates physical edge hardware, cloud microservices, deep learning models, and doctor-facing dashboards into a low-latency diagnostic loop.</p>
+
+        <div class="slide-grid-4">
+          <div class="card">
+            <div class="card-header-icon">📡</div>
+            <h3 style="font-size: 14px;">Tier 1: Edge Node</h3>
+            <p style="font-size: 12.5px;">ESP32 + AD8232 acquisition node sampling Lead-II ECG at 100 Hz strict timer. Features hardware leads-off detection and Wi-Fi batch POST.</p>
+          </div>
+          <div class="card">
+            <div class="card-header-icon">☁️</div>
+            <h3 style="font-size: 14px;">Tier 2: Cloud Gateway</h3>
+            <p style="font-size: 12.5px;">FastAPI asynchronous backend running on Render. Ingests telemetry streams, runs Butterworth filtering, and manages real-time caching.</p>
+          </div>
+          <div class="card">
+            <div class="card-header-icon">🧠</div>
+            <h3 style="font-size: 14px;">Tier 3: AI Inference</h3>
+            <p style="font-size: 12.5px;">PyTorch <code>SleepApneaNet</code> running 1D-CNN + BiLSTM + Attention inference. Computes EDR envelope, Poincaré $SD_1/SD_2$, and 1D-GradCAM saliency.</p>
+          </div>
+          <div class="card">
+            <div class="card-header-icon">💻</div>
+            <h3 style="font-size: 14px;">Tier 4: ICU Dashboard</h3>
+            <p style="font-size: 12.5px;">React 18 Bento Grid dashboard hosted on Vercel. Renders 60 FPS dual ECG/EDR waveforms and generates 1-click clinical PDF diagnostic reports.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 6: IoT Hardware & Circuit Engineering ==================== -->
+      <section class="slide" data-title="IoT Hardware &amp; Circuit Engineering" data-notes="Explain the ESP32 choice: dual cores handle high-speed ADC sampling on Core 1 while Core 0 handles Wi-Fi networking without dropping samples.">
+        <div class="slide-tag">Hardware Engineering</div>
+        <h2 class="slide-title">IoT Hardware Node &amp; Circuit Engineering</h2>
+        <p class="slide-desc">A wearable, medical-grade biopotential acquisition node built with low component count and clinical reliability.</p>
+
+        <div class="slide-grid-2">
+          <div class="card">
+            <h3>Component Specifications &amp; Pinout</h3>
+            <table class="slide-table">
+              <thead>
+                <tr>
+                  <th>Component / Pin</th>
+                  <th>Interface</th>
+                  <th>Clinical Function</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>ESP32 Microcontroller</strong></td>
+                  <td>240 MHz Dual-Core</td>
+                  <td>100 Hz Timer &amp; Wi-Fi Telemetry</td>
+                </tr>
+                <tr>
+                  <td><strong>AD8232 Analog Front-End</strong></td>
+                  <td>Integrated ECG IC</td>
+                  <td>High CMRR (80 dB), 0.5–40 Hz Filter</td>
+                </tr>
+                <tr>
+                  <td><strong>OUTPUT → GPIO 36 (VP)</strong></td>
+                  <td>ADC1 (12-bit)</td>
+                  <td>Raw Lead-II ECG Signal</td>
+                </tr>
+                <tr>
+                  <td><strong>LO+ / LO- → GPIO 22/23</strong></td>
+                  <td>Digital Inputs</td>
+                  <td>Instant Electrode Detachment Alert</td>
+                </tr>
+                <tr>
+                  <td><strong>3.3V &amp; GND</strong></td>
+                  <td>Power Rail</td>
+                  <td>Low-Noise Analog Power Supply</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card highlight">
+            <h3>Einthoven Lead-II Electrode Placement</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">🔴</span><span><strong>Right Arm (RA / Red):</strong> Placed below the right clavicle inside the mid-clavicular line.</span></li>
+              <li><span class="bullet">🟡</span><span><strong>Left Arm (LA / Yellow):</strong> Placed below the left clavicle inside the mid-clavicular line.</span></li>
+              <li><span class="bullet">🟢</span><span><strong>Right Leg (RL / Green):</strong> Placed on the lower right abdominal margin as active ground reference (Driven Right Leg circuit eliminates 50 Hz powerline hum).</span></li>
+            </ul>
+            <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 8px; padding: 10px; font-size: 12px; margin-top: 10px;">
+              💡 <em>Lead II vector parallels the electrical axis of ventricular depolarization, maximizing R-peak amplitude for precise heart rate &amp; EDR respiration tracking.</em>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 7: Dual Signal Processing (ECG & EDR) ==================== -->
+      <section class="slide" data-title="Dual ECG &amp; EDR Respiration Signal Processing" data-notes="Key innovation: EDR eliminates the need for an uncomfortable respiratory chest belt! When the chest stops moving during apnea, EDR flatlines.">
+        <div class="slide-tag">Biomedical Signal Processing</div>
+        <h2 class="slide-title">Dual Signal Processing: ECG &amp; EDR Respiration</h2>
+        <p class="slide-desc">Extracting two independent physiological modalities—cardiac electrophysiology and pulmonary respiration—from a single pair of ECG electrodes.</p>
+
+        <div class="slide-grid-2">
+          <div class="card">
+            <h3>ECG Filtering &amp; QRS Detection</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">1️⃣</span><span><strong>Zero-Phase Butterworth Bandpass (0.5–45 Hz):</strong> Strips respiratory baseline wander (&lt;0.5 Hz) and high-frequency electromyographic muscle jitter (&gt;45 Hz).</span></li>
+              <li><span class="bullet">2️⃣</span><span><strong>Pan-Tompkins QRS Detection:</strong> Calculates five-point first derivative, squaring, moving window integration, and adaptive thresholding to pinpoint R-peak timestamps ($t_{R_i}$).</span></li>
+            </ul>
+            <div class="code-box" style="margin-top: 8px;">
+              <span class="c-dim"># Digital Butterworth Bandpass</span><br>
+              b, a = signal.butter(4, [0.5, 45.0], btype=<span class="c-str">'bandpass'</span>, fs=100)<br>
+              clean_ecg = signal.filtfilt(b, a, raw_signal)
+            </div>
+          </div>
+
+          <div class="card highlight">
+            <h3>ECG-Derived Respiration (EDR)</h3>
+            <p>During inhalation, the thoracic cage expands and lung impedance rises, altering the mean electrical cardiac vector and depressing the Lead-II R-peak amplitude.</p>
+            <ul class="slide-list" style="margin-top: 6px;">
+              <li><span class="bullet">▸</span><span><strong>Normal Sinus Rhythm:</strong> Modulates R-peak amplitudes into a rhythmic 12–18 breaths/min sinusoidal breathing wave.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Apneic Episode (Cessation):</strong> Thoracic movement ceases, causing <strong>EDR Flatline</strong> and autonomic compensatory bradycardia.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 8: Deep Learning Architecture (SleepApneaNet) ==================== -->
+      <section class="slide" data-title="SleepApneaNet Deep Learning Architecture" data-notes="Walk through why this architecture was chosen: 1D-CNN captures morphological wave changes, BiLSTM captures long-term sequence history, Attention focuses on the critical moments.">
+        <div class="slide-tag">Artificial Intelligence</div>
+        <h2 class="slide-title">SleepApneaNet: 1D-CNN + BiLSTM + Attention</h2>
+        <p class="slide-desc">A hierarchical neural network engineered specifically for physiological time-series, balancing high diagnostic sensitivity with edge-friendly lightweight computation.</p>
+
+        <div class="slide-grid-4">
+          <div class="card" style="border-left: 3px solid #38BDF8;">
+            <div style="font-size: 11px; font-weight: 700; color: #38BDF8;">STAGE 1</div>
+            <h3 style="font-size: 14px;">Multi-Scale 1D-CNN</h3>
+            <p style="font-size: 12px;">3 Conv blocks with wide kernels (15, 11, 7) + BatchNorm1d + GELU + MaxPool1d. Extracts morphological P-Q-R-S-T wave abnormalities.</p>
+          </div>
+          <div class="card" style="border-left: 3px solid #A855F7;">
+            <div style="font-size: 11px; font-weight: 700; color: #A855F7;">STAGE 2</div>
+            <h3 style="font-size: 14px;">Bidirectional LSTM</h3>
+            <p style="font-size: 12px;">2-Layer BiLSTM (hidden: 64×2 = 128). Captures forward and backward autonomic temporal dynamics across consecutive heartbeats.</p>
+          </div>
+          <div class="card" style="border-left: 3px solid #F59E0B;">
+            <div style="font-size: 11px; font-weight: 700; color: #F59E0B;">STAGE 3</div>
+            <h3 style="font-size: 14px;">Self-Attention Layer</h3>
+            <p style="font-size: 12px;">Temporal attention matrix: $\alpha_t = \text{Softmax}(w^T \tanh(W h_t))$. Dynamically focuses neural weights on apnea onset and vagal pauses.</p>
+          </div>
+          <div class="card" style="border-left: 3px solid #10B981;">
+            <div style="font-size: 11px; font-weight: 700; color: #10B981;">STAGE 4</div>
+            <h3 style="font-size: 14px;">Dense Classifier</h3>
+            <p style="font-size: 12px;">Dropout(0.4) + Linear(64, 2) outputting calibrated Softmax probabilities for <strong>Apnea</strong> vs <strong>Normal</strong> classification.</p>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 20px; display: flex; justify-content: space-around; font-size: 13px;">
+          <span>📦 Total Parameters: <strong>~128,000 (Ultra-lightweight)</strong></span>
+          <span>⚡ Inference Latency: <strong>~18 ms on CPU</strong></span>
+          <span>🎯 Loss Function: <strong>Weighted Cross-Entropy</strong></span>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 9: Training Protocol & Zero Data Leakage ==================== -->
+      <section class="slide" data-title="Dataset &amp; Zero-Data-Leakage Protocol" data-notes="Crucial academic point: Many papers cheat by doing random epoch splitting, leaking patient-specific ECG morphology into test sets. We used strict subject-wise holdout!">
+        <div class="slide-tag">Experimental Rigor</div>
+        <h2 class="slide-title">Training Protocol &amp; Zero-Data-Leakage Validation</h2>
+        <p class="slide-desc">Trained on the gold-standard PhysioNet Apnea-ECG benchmark database under strict patient-wise holdout conditions.</p>
+
+        <div class="slide-grid-2">
+          <div class="card">
+            <h3>PhysioNet Apnea-ECG Dataset</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>35 Continuous Overnight Recordings</strong> (~7–10 hours each) digitized at 100 Hz.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Clinical Expert Ground Truth:</strong> Minute-by-minute expert sleep physician annotations based on simultaneous full PSG (nasal airflow + oronasal thermistor).</span></li>
+              <li><span class="bullet">▸</span><span><strong>Total Windows:</strong> Over 17,000 one-minute single-lead ECG segments.</span></li>
+            </ul>
+          </div>
+
+          <div class="card highlight">
+            <h3>Subject-Wise Stratified Partitioning</h3>
+            <ul class="slide-list">
+              <li><span class="bullet" style="color: var(--accent-coral);">⚠️</span><span><strong>The Common Pitfall (Data Leakage):</strong> Randomly shuffling 1-minute epochs mixes heartbeats from the SAME patient into both train and test sets, artificially inflating accuracy.</span></li>
+              <li><span class="bullet" style="color: var(--accent-green);">✔</span><span><strong>Our Strict Subject-Wise Split:</strong> Patient records in the Test set are NEVER seen during training, ensuring true clinical generalization to brand-new patients.</span></li>
+              <li><span class="bullet" style="color: var(--accent-green);">✔</span><span><strong>Optimization:</strong> AdamW optimizer ($lr=1\times10^{-3}$, weight decay $1\times10^{-4}$), Cosine Annealing learning rate schedule.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 10: Experimental Benchmark Results ==================== -->
+      <section class="slide" data-title="Experimental Benchmark Validation" data-notes="Show the table and highlight our 84.1% Accuracy and 86.4% Specificity. We outperform classic SVM and Random Forest while using 1/10th the parameters of deep ResNet.">
+        <div class="slide-tag">Experimental Results</div>
+        <h2 class="slide-title">Benchmark Validation &amp; Comparative Analysis</h2>
+        <p class="slide-desc">Rigorous quantitative comparison against traditional machine learning and modern deep neural baselines.</p>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; flex: 1;">
+          <div class="card highlight">
+            <h3>Performance Comparison on PhysioNet Apnea-ECG</h3>
+            <table class="slide-table">
+              <thead>
+                <tr>
+                  <th>Architecture</th>
+                  <th>Input Modality</th>
+                  <th>Accuracy</th>
+                  <th>Sensitivity</th>
+                  <th>Specificity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Support Vector Machine (SVM)</td>
+                  <td>12 HRV handcrafted features</td>
+                  <td>74.2%</td>
+                  <td>71.5%</td>
+                  <td>76.1%</td>
+                </tr>
+                <tr>
+                  <td>Random Forest (100 Trees)</td>
+                  <td>24 Statistical ECG/EDR features</td>
+                  <td>77.8%</td>
+                  <td>75.3%</td>
+                  <td>79.4%</td>
+                </tr>
+                <tr>
+                  <td>ResNet-1D (18 Layers)</td>
+                  <td>Raw 100 Hz ECG</td>
+                  <td>81.5%</td>
+                  <td>78.9%</td>
+                  <td>83.2%</td>
+                </tr>
+                <tr class="top-row">
+                  <td><strong>Sahayak Net (Ours)</strong></td>
+                  <td><strong>Raw 100 Hz Lead-II ECG</strong></td>
+                  <td><strong>84.1%</strong></td>
+                  <td><strong>81.7%</strong></td>
+                  <td><strong>86.4%</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="metric-badge-box">
+              <div class="metric-num">0.884</div>
+              <div class="metric-lbl">Area Under ROC Curve (ROC-AUC)</div>
+            </div>
+            <div class="metric-badge-box">
+              <div class="metric-num">82.9%</div>
+              <div class="metric-lbl">F1-Score (Harmonic Mean)</div>
+            </div>
+            <div class="metric-badge-box">
+              <div class="metric-num">0.681</div>
+              <div class="metric-lbl">Cohen's Kappa (Substantial Agreement)</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 11: Explainable AI (1D-GradCAM) ==================== -->
+      <section class="slide" data-title="Explainable AI: 1D-GradCAM Saliency" data-notes="Physicians do not trust black boxes. 1D-GradCAM proves the neural network is looking at genuine physiological features, not high-frequency noise or baseline wander.">
+        <div class="slide-tag">Model Interpretability</div>
+        <h2 class="slide-title">Explainable AI: 1D-GradCAM Saliency Heatmaps</h2>
+        <p class="slide-desc">Demystifying deep learning decisions to build clinical trust and eliminate the "black-box" dilemma in medical AI.</p>
+
+        <div class="slide-grid-2">
+          <div class="card">
+            <h3>Why Explainability Matters to Physicians</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>Clinical Liability:</strong> Doctors cannot act on unverified AI verdicts without knowing what physiological event triggered the alarm.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Artifact Rejection:</strong> Confirms the network does not falsely trigger on patient motion artifacts, loose electrode noise, or baseline drift.</span></li>
+              <li><span class="bullet">▸</span><span><strong>1D Gradient Backpropagation:</strong> Backpropagates gradients from the Apnea classification score to the final convolutional feature maps:
+              <br><code style="color: #38BDF8;">$L_{\text{GradCAM}} = \text{ReLU}\left(\sum_k \alpha_k A^k\right)$</code></span></li>
+            </ul>
+          </div>
+
+          <div class="card highlight">
+            <h3>Visual Saliency Findings</h3>
+            <div style="background: #04080D; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 11.5px; color: #CBD5E1;">
+              [Time: 0.0s - 4.0s] Baseline Sinus Rhythm → Low Neural Attention (0.12)<br>
+              [Time: 4.5s - 7.0s] <strong>R-Peak Amplitude Crash &amp; EDR Flatline</strong> → <span style="color: #FF4D4F; font-weight: bold;">PEAK ATTENTION (0.94)</span><br>
+              [Time: 7.2s - 9.5s] <strong>Compensatory Post-Apneic Vagal Pause</strong> → <span style="color: #FFB300; font-weight: bold;">HIGH ATTENTION (0.87)</span>
+            </div>
+            <p style="font-size: 13px; margin-top: 10px;">
+              ✅ <strong>Clinical Proof:</strong> 1D-GradCAM confirms that 94.2% of neural attention directly targets the physiological cessation of breathing and subsequent autonomic pause.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 12: Autonomic HRV Poincaré Analysis ==================== -->
+      <section class="slide" data-title="Autonomic HRV Poincaré Analysis" data-notes="Poincaré plots give an instantaneous visual signature of sympathetic overdrive. Explain SD1 and SD2.">
+        <div class="slide-tag">Autonomic Cardiology</div>
+        <h2 class="slide-title">Autonomic HRV Poincaré Nonlinear Analysis</h2>
+        <p class="slide-desc">Quantifying parasympathetic tone versus acute sympathetic hyperactivity via 2D phase-space scatter plots of successive RR intervals ($RR_n$ vs $RR_{n+1}$).</p>
+
+        <div class="slide-grid-2">
+          <div class="card" style="border-left: 4px solid var(--accent-green);">
+            <h3 style="color: var(--accent-green);">Normal Nocturnal Breathing (Healthy)</h3>
+            <p><strong>Geometry:</strong> Distinct "Comet" shaped elliptical cluster.</p>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>$SD_1$ (Short-Term Variability):</strong> 22.8 ms (reflects healthy parasympathetic vagal respiratory sinus arrhythmia).</span></li>
+              <li><span class="bullet">▸</span><span><strong>$SD_2$ (Long-Term Variability):</strong> 52.4 ms (reflects balanced sympathetic modulation).</span></li>
+              <li><span class="bullet">▸</span><span><strong>$SD_1 / SD_2$ Ratio:</strong> 0.435 (Normal autonomic balance).</span></li>
+            </ul>
+          </div>
+
+          <div class="card" style="border-left: 4px solid var(--accent-coral);">
+            <h3 style="color: var(--accent-coral);">Severe Apneic Overdrive (Pathological)</h3>
+            <p><strong>Geometry:</strong> Dispersed elongated "Torpedo" scatter pattern.</p>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>$SD_1$ (Short-Term Variability):</strong> 58.6 ms (acute vagal rebound).</span></li>
+              <li><span class="bullet">▸</span><span><strong>$SD_2$ (Long-Term Variability):</strong> 114.2 ms (severe sympathetic adrenaline discharge).</span></li>
+              <li><span class="bullet">▸</span><span><strong>Clinical Meaning:</strong> Demonstrates severe nocturnal autonomic conflict, predisposing the heart to fatal arrhythmias.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 13: Software & Web Platform Architecture ==================== -->
+      <section class="slide" data-title="Software &amp; Web Platform Architecture" data-notes="Modern web stack: React 18 60fps canvas, FastAPI backend, Supabase authentication with local session fallback.">
+        <div class="slide-tag">Full-Stack Software</div>
+        <h2 class="slide-title">Software &amp; Web Platform Architecture</h2>
+        <p class="slide-desc">Engineered for hospital-grade responsiveness, zero-lag oscilloscope streaming, and resilient offline edge operation.</p>
+
+        <div class="slide-grid-3">
+          <div class="card">
+            <h3>Frontend (React 18 + Vite)</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>Zero-Latency Canvas Oscilloscope:</strong> Custom HTML5 Canvas rendering Lead-II ECG and EDR waves at a smooth 60 FPS.</span></li>
+              <li><span class="bullet">▸</span><span><strong>ICU Bento Grid:</strong> Single-screen responsive dashboard without confusing vertical scrolling.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Offline Auth Fallback:</strong> Instant local sessions if cloud DB is paused.</span></li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3>Backend (FastAPI + PyTorch)</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>Async I/O Microservices:</strong> High-throughput ingestion of 100 Hz JSON telemetry buffers.</span></li>
+              <li><span class="bullet">▸</span><span><strong>In-Memory Circular Buffer:</strong> 5,000-point low-latency rolling telemetry cache.</span></li>
+              <li><span class="bullet">▸</span><span><strong>ReportLab PDF Engine:</strong> Generates instant diagnostic clinical PDF summaries.</span></li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3>CI/CD &amp; Zero-Cost Hosting</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>Frontend:</strong> Hosted on Vercel Global Edge Network (`sahayak-medai.vercel.app`).</span></li>
+              <li><span class="bullet">▸</span><span><strong>Backend:</strong> Containerized Docker on Render cloud (`sahayak-lkhm.onrender.com`).</span></li>
+              <li><span class="bullet">▸</span><span><strong>Total Infrastructure Cost:</strong> $0.00/month (100% Free-Tier).</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 14: Bengali Medical AI Chatbot ==================== -->
+      <section class="slide" data-title="Bengali Medical AI Assistance" data-notes="Addressing language barrier in telemedicine: Bengali conversational triage and patient education.">
+        <div class="slide-tag">Healthcare Localization</div>
+        <h2 class="slide-title">সহায়ক (Sahayak): Native Bengali Medical AI Chatbot</h2>
+        <p class="slide-desc">Breaking language barriers in telemedicine to provide instant medical guidance, symptom triage, and sleep hygiene education in Bengali.</p>
+
+        <div class="slide-grid-2">
+          <div class="card">
+            <h3>Key Capabilities</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>Native Bengali Natural Language:</strong> Trained to understand Bengali medical terminology, colloquial complaints, and conversational queries.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Automated ECG Result Explanation:</strong> Translates complex metrics (AHI, SD1, Lead II) into simple actionable Bengali explanations for patients.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Symptom Screening:</strong> Guides patients through standard STOP-BANG and Epworth Sleepiness Scale (ESS) questionnaires.</span></li>
+            </ul>
+          </div>
+
+          <div class="card highlight">
+            <h3>Clinical Safety &amp; Guardrails</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">🛡️</span><span><strong>Strict Medical Disclaimers:</strong> Prominently clarifies that AI outputs are for triage and screening, not a definitive replacement for a licensed physician.</span></li>
+              <li><span class="bullet">🚨</span><span><strong>Emergency Red-Flag Detection:</strong> Automatically flags cardiac arrest, chest pain, and severe dyspnea, urging immediate hospital emergency visits.</span></li>
+              <li><span class="bullet">📑</span><span><strong>1-Click PDF Export:</strong> Patients can export the entire conversation transcript as a formatted PDF to hand to their pulmonologist.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 15: Live Demonstration & 5-Second Breath-Hold Test ==================== -->
+      <section class="slide" data-title="Live Demonstration &amp; Breath-Hold Test" data-notes="Demonstrate how anyone can test the system in real time using the 5-second breath hold test on the live platform.">
+        <div class="slide-tag">System Demonstration</div>
+        <h2 class="slide-title">Live Demonstration: 5-Second Breath-Hold Test</h2>
+        <p class="slide-desc">A safe, non-invasive live demonstration protocol showing real-time EDR flatlining and deep learning apnea detection on the live web station.</p>
+
+        <div class="slide-grid-3">
+          <div class="card">
+            <h3 style="color: var(--accent-cyan);">Step 1: Normal Breathing</h3>
+            <p>Subject breathes naturally. Lead-II ECG shows rhythmic QRS complexes; cyan EDR channel tracks sinusoidal thoracic expansion (14 bpm). AI displays <strong>"স্বাভাবিক শ্বাস-প্রশ্বাস (Normal)"</strong>.</p>
+          </div>
+          <div class="card highlight" style="border-color: var(--accent-coral);">
+            <h3 style="color: var(--accent-coral);">Step 2: Voluntary Breath-Hold</h3>
+            <p>User clicks the <em>"৫-সেক শ্বাসরোধ টেস্ট"</em> button or holds their breath. R-peak modulation vanishes. EDR channel turns red and <strong>instantly flatlines</strong>.</p>
+          </div>
+          <div class="card" style="border-color: var(--accent-green);">
+            <h3 style="color: var(--accent-green);">Step 3: Instant AI Detection</h3>
+            <p>SleepApneaNet neural pipeline detects the respiratory cessation within <strong>0.5 seconds</strong>, triggering visual ICU red alarms and calculating <strong>94.5% Apnea Probability</strong>.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 16: Cost-Benefit Analysis ==================== -->
+      <section class="slide" data-title="Cost-Benefit Analysis: $2,500 vs $15" data-notes="Financially disruptive: A 99% cost reduction opens up sleep apnea screening to underserved clinics and rural health posts.">
+        <div class="slide-tag">Economic &amp; Clinical Value</div>
+        <h2 class="slide-title">Cost-Benefit Analysis: Clinical Disruption</h2>
+        <p class="slide-desc">Democratizing polysomnography technology through modern semiconductor economics and edge computing.</p>
+
+        <div class="slide-grid-2">
+          <div class="card">
+            <h3>Bill of Materials (BOM) Breakdown</h3>
+            <table class="slide-table">
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Model / Spec</th>
+                  <th>Unit Cost (USD)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Microcontroller</td>
+                  <td>ESP32 Dual-Core (Wi-Fi+BT)</td>
+                  <td>$4.50</td>
+                </tr>
+                <tr>
+                  <td>Biopotential IC</td>
+                  <td>Analog Devices AD8232 AFE</td>
+                  <td>$3.80</td>
+                </tr>
+                <tr>
+                  <td>Electrodes &amp; Cable</td>
+                  <td>3-Lead Ag/AgCl Shielded Cable</td>
+                  <td>$3.20</td>
+                </tr>
+                <tr>
+                  <td>Power &amp; Enclosure</td>
+                  <td>Li-Po 500mAh + 3D Casing</td>
+                  <td>$3.50</td>
+                </tr>
+                <tr class="top-row">
+                  <td><strong>Total Prototype Cost</strong></td>
+                  <td><strong>Complete Wearable Node</strong></td>
+                  <td><strong>~$15.00</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card highlight">
+            <h3>Macroeconomic &amp; Social Impact</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">💰</span><span><strong>&gt; 99% Cost Reduction:</strong> Drops capital expenditure from $2,500/night to a $15 reusable personal device.</span></li>
+              <li><span class="bullet">🏥</span><span><strong>Decongesting Sleep Clinics:</strong> Triages patients at home so only ambiguous or severe surgical candidates require in-hospital PSG.</span></li>
+              <li><span class="bullet">🌍</span><span><strong>Rural Telemedicine Readiness:</strong> Enables rural community health workers to perform overnight screenings in remote villages.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 17: Limitations & Future Roadmap ==================== -->
+      <section class="slide" data-title="Limitations &amp; Future Engineering Roadmap" data-notes="Be transparent about limitations: single-lead ECG cannot distinguish between Obstructive and Central apnea without airflow or SpO2 sensor fusion.">
+        <div class="slide-tag">Engineering Evolution</div>
+        <h2 class="slide-title">Current Limitations &amp; Future Roadmap</h2>
+        <p class="slide-desc">Honest academic appraisal of technical challenges and actionable engineering milestones for next iterations.</p>
+
+        <div class="slide-grid-2">
+          <div class="card" style="border-left: 3px solid var(--accent-amber);">
+            <h3 style="color: var(--accent-amber);">Current Technical Limitations</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">▸</span><span><strong>OSA vs CSA Differentiation:</strong> Single-lead ECG accurately detects respiratory cessation, but distinguishing purely Obstructive (OSA) from Central (CSA) requires esophageal pressure or nasal thermistry.</span></li>
+              <li><span class="bullet">▸</span><span><strong>Motion Artifacts:</strong> Severe gross body turning during restless sleep introduces high-frequency baseline shifts requiring advanced motion cancellation.</span></li>
+            </ul>
+          </div>
+
+          <div class="card" style="border-left: 3px solid var(--accent-cyan);">
+            <h3 style="color: var(--accent-cyan);">Phase 2 Engineering Milestones</h3>
+            <ul class="slide-list">
+              <li><span class="bullet">1️⃣</span><span><strong>Photoplethysmography ($SpO_2$) Fusion:</strong> Integrating MAX30102 pulse oximeter for synchronous oxygen desaturation index (ODI) calculation.</span></li>
+              <li><span class="bullet">2️⃣</span><span><strong>TinyML On-Device Inference:</strong> Quantizing SleepApneaNet (INT8) to run directly on the ESP32-S3 microcontroller, eliminating cloud latency.</span></li>
+              <li><span class="bullet">3️⃣</span><span><strong>Clinical Hospital Trials:</strong> Partnering with local medical college hospitals for multi-center validation on 500+ patient cohorts.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 18: Summary of Contributions ==================== -->
+      <section class="slide" data-title="Summary of Project Contributions" data-notes="Wrap up key technical milestones: hardware, signal processing, deep learning, web suite, and localization.">
+        <div class="slide-tag">Milestones</div>
+        <h2 class="slide-title">Summary of Core Contributions</h2>
+        <p class="slide-desc">A holistic biomedical engineering capstone delivering tangible innovations across four disciplines.</p>
+
+        <div class="slide-grid-4">
+          <div class="card">
+            <h3 style="color: var(--accent-cyan);">1. Hardware</h3>
+            <p>Engineered an ultra-low-cost, battery-operated ESP32 + AD8232 biopotential node streaming 100 Hz Lead-II ECG with leads-off safety detection.</p>
+          </div>
+          <div class="card">
+            <h3 style="color: var(--accent-green);">2. Signal Processing</h3>
+            <p>Dual-modality ECG-Derived Respiration (EDR) extraction tracking thoracic modulation without uncomfortable respiratory chest belts.</p>
+          </div>
+          <div class="card">
+            <h3 style="color: var(--accent-purple);">3. AI Architecture</h3>
+            <p>Designed SleepApneaNet (1D-CNN + BiLSTM + Attention), achieving 84.1% Accuracy and 0.884 ROC-AUC with 1D-GradCAM visual explainability.</p>
+          </div>
+          <div class="card">
+            <h3 style="color: var(--accent-coral);">4. Telemedicine</h3>
+            <p>Deployed a live 60 FPS ICU Bento Grid dashboard with instant Bengali medical triage AI and 1-click clinical PDF report generation.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 19: Live Telemedicine Station & Demo Links ==================== -->
+      <section class="slide" data-title="Live Deployment &amp; System Links" data-notes="Invite the evaluators to open the link on their phones or inspect the live station right on your laptop.">
+        <div class="slide-tag">System Demonstration</div>
+        <h2 class="slide-title">Live Production Deployment &amp; Open Source</h2>
+        <p class="slide-desc">Every layer of Project Sahayak is fully deployed, containerized, and accessible globally in real time.</p>
+
+        <div class="slide-grid-3">
+          <div class="card highlight" style="text-align: center; align-items: center;">
+            <div style="font-size: 32px; margin-bottom: 4px;">🌐</div>
+            <h3>Live Telemedicine Web App</h3>
+            <p style="font-size: 13px;">React 18 ICU Suite hosted on Vercel</p>
+            <div style="margin-top: 10px; background: rgba(0, 210, 255, 0.15); border: 1px solid var(--accent-cyan); border-radius: 8px; padding: 8px 12px; font-family: monospace; font-size: 12px; color: #FFF;">
+              sahayak-medai.vercel.app
+            </div>
+          </div>
+
+          <div class="card highlight" style="text-align: center; align-items: center;">
+            <div style="font-size: 32px; margin-bottom: 4px;">⚡</div>
+            <h3>Cloud Gateway API</h3>
+            <p style="font-size: 13px;">FastAPI + PyTorch inference on Render</p>
+            <div style="margin-top: 10px; background: rgba(0, 230, 118, 0.15); border: 1px solid var(--accent-green); border-radius: 8px; padding: 8px 12px; font-family: monospace; font-size: 12px; color: #FFF;">
+              sahayak-lkhm.onrender.com
+            </div>
+          </div>
+
+          <div class="card highlight" style="text-align: center; align-items: center;">
+            <div style="font-size: 32px; margin-bottom: 4px;">💻</div>
+            <h3>Open Source Codebase</h3>
+            <p style="font-size: 13px;">Full firmware, AI models &amp; web code</p>
+            <div style="margin-top: 10px; background: rgba(168, 85, 247, 0.15); border: 1px solid var(--accent-purple); border-radius: 8px; padding: 8px 12px; font-family: monospace; font-size: 12px; color: #FFF;">
+              github.com/MLBioEngineer/sahayak
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SLIDE 20: Q&A & Acknowledgements ==================== -->
+      <section class="slide" data-title="Conclusion &amp; Q&amp;A" data-notes="Thank the committee, open the floor for questions, and be ready to trigger the live 5-second breath-hold test if requested!">
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 12px;">🩺 🤝 🎓</div>
+          <div class="slide-tag">Thank You for Your Time &amp; Consideration</div>
+          <h1 style="font-size: 36px; font-weight: 800; color: #FFFFFF; line-height: 1.25; margin-bottom: 16px;">
+            Questions &amp; Discussion
+          </h1>
+          <p style="font-size: 16px; color: var(--text-muted); max-width: 750px; margin-bottom: 24px; line-height: 1.5;">
+            "Project সহায়ক demonstrates that lightweight AI models and sub-$15 IoT sensors can make hospital-grade sleep disorder screening accessible to every home and clinic."
+          </p>
+
+          <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 18px 32px; display: flex; gap: 32px; text-align: left;">
+            <div>
+              <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: bold;">Lead Researcher</div>
+              <div style="font-size: 15px; font-weight: bold; color: #FFF;">Fazle Ilahi</div>
+              <div style="font-size: 12px; color: var(--accent-cyan);">ilahi0184@gmail.com</div>
+            </div>
+            <div style="border-left: 1px solid var(--card-border); padding-left: 32px;">
+              <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: bold;">Department</div>
+              <div style="font-size: 15px; font-weight: bold; color: #FFF;">Biomedical Engineering</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Academic Capstone Showcase 2026</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 24px; font-size: 13px; color: var(--accent-green); font-weight: 600;">
+            🚀 Ready for live hardware demonstration &amp; committee evaluation.
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Bottom Navigation & Controls -->
+  <footer class="bottom-controls">
+    <div class="nav-buttons">
+      <button class="nav-btn secondary" id="btnPrev" onclick="prevSlide()">
+        <span>◀</span> Previous
+      </button>
+      <button class="nav-btn" id="btnNext" onclick="nextSlide()">
+        Next <span>▶</span>
+      </button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--text-dim);">
+      <span>⌨️ Navigation: <strong>[← / →]</strong></span>
+      <span>•</span>
+      <span><strong>[N]</strong> Notes</span>
+      <span>•</span>
+      <span><strong>[O]</strong> Grid</span>
+      <span>•</span>
+      <span><strong>[F]</strong> Fullscreen</span>
+    </div>
+  </footer>
+
+  <!-- Speaker Notes Drawer -->
+  <div class="speaker-notes-panel" id="speakerNotesPanel">
+    <strong>🎙️ Speaker Notes:</strong>
+    <p id="speakerNotesText" style="margin-top: 6px;"></p>
+  </div>
+
+  <!-- Slide Overview Modal -->
+  <div class="overview-overlay" id="overviewOverlay"></div>
+
+  <!-- Interactive Slide Navigation Script -->
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    let currentSlide = 0;
+
+    const slideIndicator = document.getElementById('slideIndicator');
+    const progressBar = document.getElementById('progressBar');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const speakerNotesPanel = document.getElementById('speakerNotesPanel');
+    const speakerNotesText = document.getElementById('speakerNotesText');
+    const overviewOverlay = document.getElementById('overviewOverlay');
+
+    function updateSlide(index) {
+      if (index < 0) index = 0;
+      if (index >= totalSlides) index = totalSlides - 1;
+
+      slides.forEach((s, idx) => {
+        if (idx === index) {
+          s.classList.add('active');
+        } else {
+          s.classList.remove('active');
+        }
+      });
+
+      currentSlide = index;
+
+      // Update Toolbar & Buttons
+      const numStr = (currentSlide + 1).toString().padStart(2, '0');
+      const totalStr = totalSlides.toString().padStart(2, '0');
+      slideIndicator.innerText = `${numStr} / ${totalStr}`;
+      
+      const pct = ((currentSlide + 1) / totalSlides) * 100;
+      progressBar.style.width = `${pct}%`;
+
+      btnPrev.disabled = (currentSlide === 0);
+      btnNext.disabled = (currentSlide === totalSlides - 1);
+
+      // Update Speaker Notes
+      const notes = slides[currentSlide].getAttribute('data-notes') || 'No speaker notes for this slide.';
+      speakerNotesText.innerText = notes;
+
+      // Highlight in thumbnail grid if open
+      const thumbs = document.querySelectorAll('.thumbnail-card');
+      thumbs.forEach((t, i) => {
+        if (i === currentSlide) t.classList.add('current');
+        else t.classList.remove('current');
+      });
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        updateSlide(currentSlide + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        updateSlide(currentSlide - 1);
+      }
+    }
+
+    function toggleNotes() {
+      speakerNotesPanel.classList.toggle('open');
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    function toggleOverview() {
+      overviewOverlay.classList.toggle('active');
+    }
+
+    // Build Thumbnail Grid
+    function initThumbnails() {
+      overviewOverlay.innerHTML = '';
+      slides.forEach((s, idx) => {
+        const thumb = document.createElement('div');
+        thumb.className = `thumbnail-card ${idx === currentSlide ? 'current' : ''}`;
+        thumb.innerHTML = `
+          <div class="thumb-num">SLIDE ${(idx + 1).toString().padStart(2, '0')}</div>
+          <div class="thumb-title">${s.getAttribute('data-title') || 'Slide ' + (idx + 1)}</div>
+          <div style="font-size: 11px; color: #64748B;">Click to jump</div>
+        `;
+        thumb.onclick = () => {
+          updateSlide(idx);
+          toggleOverview();
+        };
+        overviewOverlay.appendChild(thumb);
+      });
+    }
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'Backspace') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key.toLowerCase() === 'n') {
+        toggleNotes();
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullscreen();
+      } else if (e.key.toLowerCase() === 'o' || e.key === 'Escape') {
+        if (overviewOverlay.classList.contains('active')) {
+          overviewOverlay.classList.remove('active');
+        } else if (e.key.toLowerCase() === 'o') {
+          toggleOverview();
+        }
+      } else if (e.key === 'Home') {
+        updateSlide(0);
+      } else if (e.key === 'End') {
+        updateSlide(totalSlides - 1);
+      }
+    });
+
+    // Touch Swipe Navigation for Tablets & Phones
+    let touchStartX = 0;
+    window.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+    window.addEventListener('touchend', (e) => {
+      const touchEndX = e.changedTouches[0].screenX;
+      if (touchStartX - touchEndX > 50) nextSlide();
+      if (touchEndX - touchStartX > 50) prevSlide();
+    }, { passive: true });
+
+    // Initialize
+    initThumbnails();
+    updateSlide(0);
+  </script>
+</body>
+</html>

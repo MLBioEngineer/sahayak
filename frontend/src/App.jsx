@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import ChatWindow from "./components/ChatWindow";
 import SleepApneaMonitor from "./components/SleepApneaMonitor";
 import AuthScreen from "./components/AuthScreen";
+import QRCodeModal from "./components/QRCodeModal";
 import { supabase, isSupabaseConfigured } from "./api/supabase";
 import { Analytics } from "@vercel/analytics/react";
 import "./App.css";
@@ -9,6 +10,7 @@ import "./App.css";
 export default function App() {
   const [activeTab, setActiveTab] = useState("ecg"); // "chat" or "ecg"
   const [chatPrompt, setChatPrompt] = useState("");
+  const [showQrModal, setShowQrModal] = useState(false);
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem("sahayak_mock_user");
     if (saved) {
@@ -117,6 +119,14 @@ export default function App() {
         <span>{user ? `👤 Logged in as ${user.email}` : "⚠️ Guest Mode - Limited Access"}</span>
         <div className="user-status-actions">
           <button 
+            className="qr-toggle-btn"
+            onClick={() => setShowQrModal(true)}
+            title="মোবাইলে লাইভ ডেমো দেখতে QR কোড স্ক্যান করুন"
+            type="button"
+          >
+            📱 মোবাইল QR কোড
+          </button>
+          <button 
             className="theme-toggle-btn" 
             onClick={toggleTheme} 
             title="থিম পরিবর্তন করুন"
@@ -154,11 +164,31 @@ export default function App() {
       {/* Main Content View */}
       <main className="main-content">
         {activeTab === "ecg" ? (
-          <SleepApneaMonitor onDiscussWithAi={handleDiscussWithAi} />
+          <SleepApneaMonitor 
+            onDiscussWithAi={handleDiscussWithAi} 
+            onOpenQr={() => setShowQrModal(true)}
+          />
         ) : (
           <ChatWindow initialMessage={chatPrompt} />
         )}
       </main>
+
+      {/* Persistent Floating QR Access Pill */}
+      <button 
+        className="floating-qr-pill" 
+        onClick={() => setShowQrModal(true)}
+        title="মোবাইলে স্ক্যান করে লাইভ ডেমো চালান"
+        type="button"
+      >
+        <span className="floating-qr-icon">📱</span>
+        <span className="floating-qr-text">মোবাইল QR কোড</span>
+      </button>
+
+      {/* Interactive QR Code Modal */}
+      <QRCodeModal 
+        isOpen={showQrModal} 
+        onClose={() => setShowQrModal(false)} 
+      />
 
       <Analytics />
     </div>

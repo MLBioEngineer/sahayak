@@ -207,7 +207,7 @@ function computeLiveEdr(ecgSamples, isApneaOrBreathHold = false) {
   return edr;
 }
 
-export default function SleepApneaMonitor({ onDiscussWithAi }) {
+export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
   // Pre-seed state with verified benchmark data so waveform and vitals render on Frame 0
   const [signal, setSignal] = useState(() => getFallbackBenchmarkData("apnea").ecg_signal);
   const [edrSignal, setEdrSignal] = useState(() => getFallbackBenchmarkData("apnea").edr_signal);
@@ -728,6 +728,15 @@ export default function SleepApneaMonitor({ onDiscussWithAi }) {
                 : "PhysioNet ভ্যালিডেটেড স্ট্রিম"}
             </span>
           </div>
+
+          <button
+            className="icu-btn-qr"
+            onClick={onOpenQr}
+            type="button"
+            title="মোবাইলে লাইভ ডেমো দেখতে QR কোড স্ক্যান করুন"
+          >
+            📱 মোবাইল QR
+          </button>
 
           <button
             className="icu-btn-pdf"

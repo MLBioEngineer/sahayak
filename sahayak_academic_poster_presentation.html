@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sahayak • Academic Conference Poster Presentation (A0 / 48x36")</title>
+  <style>
+    :root {
+      --primary: #0F3D3E;
+      --primary-dark: #082425;
+      --accent-cyan: #00D2FF;
+      --accent-green: #00E676;
+      --accent-coral: #FF4D4F;
+      --accent-amber: #FFB300;
+      --bg: #070B10;
+      --card-bg: #0E1620;
+      --card-border: #1E2D3D;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #04070A;
+      color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Print & Export Floating Toolbar */
+    .print-bar {
+      position: sticky;
+      top: 12px;
+      z-index: 100;
+      background: rgba(14, 22, 32, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--accent-cyan);
+      border-radius: 50px;
+      padding: 10px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 8px 32px rgba(0, 210, 255, 0.25);
+    }
+    .print-btn {
+      background: linear-gradient(135deg, #00D2FF, #0088CC);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .print-btn:hover {
+      transform: scale(1.04);
+      box-shadow: 0 0 15px rgba(0, 210, 255, 0.6);
+    }
+    .web-link {
+      color: var(--accent-cyan);
+      font-size: 13px;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .web-link:hover { text-decoration: underline; }
+
+    /* Poster Outer Canvas (Standard 4:3 / 16:9 Academic Ratio) */
+    .poster-canvas {
+      width: 1400px;
+      min-height: 980px;
+      background: var(--bg);
+      border: 2px solid var(--card-border);
+      border-radius: 20px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      box-shadow: 0 16px 60px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+
+    /* Poster Banner / Header */
+    .poster-header {
+      background: linear-gradient(135deg, #081B1C 0%, #0F3D3E 50%, #0A2627 100%);
+      border: 1px solid rgba(0, 210, 255, 0.35);
+      border-radius: 16px;
+      padding: 24px 32px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 24px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+    .poster-title-area h1 {
+      font-size: 27px;
+      color: #FFFFFF;
+      line-height: 1.25;
+      margin-bottom: 8px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .poster-title-area h1 span.highlight {
+      color: var(--accent-cyan);
+    }
+    .poster-subtitle {
+      font-size: 15px;
+      color: #D1E5E7;
+      font-weight: 500;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    .author-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .author-badge {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 4px 12px;
+      border-radius: 8px;
+      color: #FFFFFF;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .qr-banner-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(0, 210, 255, 0.3);
+      border-radius: 12px;
+      padding: 12px 18px;
+      text-align: center;
+      min-width: 170px;
+    }
+    .qr-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .qr-url {
+      font-family: monospace;
+      font-size: 12px;
+      color: #FFFFFF;
+    }
+
+    /* 3-Column Conference Layout */
+    .poster-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .poster-col {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Section Cards */
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      position: relative;
+    }
+    .section-card.accent-card {
+      border-color: rgba(0, 210, 255, 0.4);
+      background: linear-gradient(180deg, rgba(0, 210, 255, 0.04) 0%, var(--card-bg) 100%);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .section-header .sec-icon {
+      font-size: 17px;
+      background: rgba(0, 210, 255, 0.15);
+      color: var(--accent-cyan);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .section-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.2px;
+    }
+
+    .card-body {
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+    .card-body p { margin-bottom: 8px; }
+    .card-body strong { color: #FFFFFF; }
+
+    /* Bullet List with Highlights */
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12.5px;
+    }
+    .bullet-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    /* Embedded Circuit SVG */
+    .mini-circuit-box {
+      background: #05080C;
+      border: 1px solid rgba(0, 210, 255, 0.25);
+      border-radius: 10px;
+      padding: 10px;
+      margin: 10px 0;
+      text-align: center;
+    }
+
+    /* Deep Learning Architecture Flowchart Diagram */
+    .dl-pipeline-box {
+      background: #060B10;
+      border: 1px solid rgba(0, 230, 118, 0.3);
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+    .pipeline-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    .pipeline-step.step-cnn { border-left: 3px solid #38BDF8; color: #E0F2FE; }
+    .pipeline-step.step-lstm { border-left: 3px solid #A855F7; color: #F3E8FF; }
+    .pipeline-step.step-attn { border-left: 3px solid #F59E0B; color: #FEF3C7; }
+    .pipeline-step.step-fc { border-left: 3px solid #10B981; color: #D1FAE5; }
+
+    /* Metrics Grid & Benchmark Table */
+    .metrics-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .metric-pill {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+    .metric-pill .lbl {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .metric-pill .val {
+      font-size: 18px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin: 2px 0;
+    }
+    .metric-pill.top-val .val { color: var(--accent-green); }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      margin-top: 10px;
+    }
+    .data-table th, .data-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--card-border);
+      text-align: left;
+    }
+    .data-table th {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 10px;
+    }
+    .data-table tr.highlight-row {
+      background: rgba(0, 210, 255, 0.08);
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .data-table tr.highlight-row td:first-child {
+      color: var(--accent-cyan);
+    }
+
+    /* XAI Saliency Visual Representation */
+    .xai-bar-visual {
+      background: #060B10;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px;
+      margin: 10px 0;
+    }
+    .saliency-strip {
+      display: flex;
+      height: 18px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 6px 0;
+    }
+    .saliency-segment {
+      flex: 1;
+      height: 100%;
+    }
+
+    /* Poincaré HRV Scatter Representation */
+    .poincare-box {
+      background: #060A0E;
+      border: 1px solid rgba(0, 210, 255, 0.2);
+      border-radius: 10px;
+      padding: 10px;
+      margin-top: 8px;
+    }
+
+    /* Footer of Poster */
+    .poster-footer {
+      border-top: 1px solid var(--card-border);
+      padding-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .poster-footer strong { color: var(--text-muted); }
+
+    /* Print Formatting */
+    @media print {
+      body {
+        background: #FFFFFF !important;
+        color: #000000 !important;
+        padding: 0 !important;
+      }
+      .print-bar { display: none !important; }
+      .poster-canvas {
+        width: 100% !important;
+        min-height: 100vh !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 16px !important;
+        background: #080D14 !important;
+        color: #F1F5F9 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      @page {
+        size: 48in 36in landscape;
+        margin: 0.5in;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Print & Quick Access Toolbar -->
+  <div class="print-bar">
+    <button class="print-btn" onclick="window.print()">
+      <span>🖨️</span> Print / Save as PDF (Vector HD Poster)
+    </button>
+    <a href="https://sahayak-medai.vercel.app" target="_blank" class="web-link">
+      <span>🌐</span> Live Web Station: sahayak-medai.vercel.app
+    </a>
+    <span style="font-size: 12px; color: #94A3B8;">| Conference Dimensions: 48" × 36" (A0 Ready)</span>
+  </div>
+
+  <!-- Main Academic Poster Canvas -->
+  <div class="poster-canvas">
+
+    <!-- ==================== POSTER HEADER ==================== -->
+    <header class="poster-header">
+      <div class="poster-title-area">
+        <h1>
+          <span class="highlight">Project সহায়ক (Sahayak):</span> IoT-Driven Real-Time Sleep Apnea Detection from Single-Lead ECG via Deep 1D-CNN + BiLSTM + Attention Network
+        </h1>
+        <div class="poster-subtitle">
+          An End-to-End Clinical-Grade Platform Integrating Dual ECG+EDR Respiration Telemetry, Autonomic HRV Poincaré Analysis, and Bengali Medical AI Assistance
+        </div>
+        <div class="author-meta">
+          <span class="author-badge">👨‍💻 Fazle Ilahi (MLBioEngineer)</span>
+          <span>🏛️ Department of Biomedical Engineering</span>
+          <span>🔬 Focus: Deep Learning &amp; Embedded Telemedicine IoT</span>
+          <span>📅 Academic Year 2026</span>
+        </div>
+      </div>
+
+      <div class="qr-banner-box">
+        <div class="qr-badge">LIVE CLINICAL SUITE</div>
+        <div style="font-size: 28px; margin: 4px 0;">🫀 📡</div>
+        <div class="qr-url">sahayak-medai.vercel.app</div>
+      </div>
+    </header>
+
+    <!-- ==================== 3-COLUMN BODY GRID ==================== -->
+    <main class="poster-grid">
+
+      <!-- ==================== COLUMN 1 ==================== -->
+      <!-- Clinical Problem, Objectives, IoT Hardware -->
+      <div class="poster-col">
+
+        <!-- 1. Problem Statement -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="sec-icon">⚠️</span>
+            <h2>1. Clinical Motivation &amp; Problem Statement</h2>
+          </div>
+          <div class="card-body">
+            <p>
+              <strong>Obstructive Sleep Apnea (OSA)</strong> affects nearly <strong>1 billion individuals worldwide</strong>, causing recurrent nocturnal upper airway collapse, hypoxemia, sympathetic autonomic surges, and severe cardiovascular morbidity.
+            </p>
+            <ul class="feature-list">
+              <li>
+                <span class="bullet-dot"></span>
+                <span><strong>The Clinical Bottleneck:</strong> Gold-standard Polysomnography (PSG) costs <strong>$1,000–$2,500/night</strong>, requires 20+ intrusive wired sensors, and suffers from 6–12 month hospital waiting queues.</span>
+              </li>
+              <li>
+                <span class="bullet-dot"></span>
+                <span><strong>Localization Gap:</strong> Under-resourced regional populations lack native Bengali medical awareness systems and continuous low-cost home monitoring solutions.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 2. System Architecture -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="sec-icon">🏗️</span>
+            <h2>2. End-to-End Telemedicine Architecture</h2>
+          </div>
+          <div class="card-body">
+            <p>Sahayak establishes a 4-tier closed-loop clinical diagnostic pipeline:</p>
+            
+            <div style="background: #05080C; border: 1px solid var(--card-border); border-radius: 8px; padding: 10px; font-size: 11.5px; font-family: monospace; color: #A5F3FC;">
+              [Bedside ESP32 + AD8232 Node] (100 Hz Lead II)<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;│ (Wi-Fi JSON Stream / Zero-Jitter Timer)<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+              [FastAPI Cloud Gateway on Render]<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;├── Pan-Tompkins QRS &amp; EDR Respiration Extractor<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;├── 1D-CNN + BiLSTM + Attention PyTorch Inference<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;└── Autonomic Poincaré Matrix (SD1, SD2, Ratio)<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+              [React Bento Grid ICU Dashboard on Vercel]<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;└── Automated Bengali Clinical PDF Diagnostic Report
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. IoT Hardware & Tinkercad Simulation -->
+        <div class="section-card accent-card">
+          <div class="section-header">
+            <span class="sec-icon">⚡</span>
+            <h2>3. IoT Hardware Node &amp; Circuit Wiring</h2>
+          </div>
+          <div class="card-body">
+            <p>
+              Custom wearable acquisition node utilizing <strong>ESP32 (240 MHz Dual-Core)</strong> paired with <strong>Analog Devices AD8232</strong> front-end.
+            </p>
+
+            <!-- Vector Circuit Diagram -->
+            <div class="mini-circuit-box">
+              <svg width="370" height="130" viewBox="0 0 370 130">
+                <!-- ESP32 -->
+                <rect x="10" y="20" width="130" height="90" rx="6" fill="#1E293B" stroke="#38BDF8" stroke-width="1.5"/>
+                <rect x="25" y="35" width="55" height="50" rx="3" fill="#94A3B8"/>
+                <text x="52" y="63" fill="#0F172A" font-size="8" font-weight="bold" text-anchor="middle">ESP32</text>
+                <text x="75" y="100" fill="#38BDF8" font-size="9" font-weight="bold" text-anchor="middle">NodeMCU</text>
+                
+                <!-- AD8232 -->
+                <rect x="220" y="20" width="130" height="90" rx="6" fill="#B91C1C" stroke="#EF4444" stroke-width="1.5"/>
+                <rect x="255" y="42" width="30" height="30" rx="2" fill="#0F172A"/>
+                <text x="270" y="60" fill="#FFF" font-size="7" font-weight="bold" text-anchor="middle">AD8232</text>
+                <circle cx="335" cy="55" r="7" fill="#1E293B" stroke="#CBD5E1"/>
+                <text x="285" y="100" fill="#FECACA" font-size="9" font-weight="bold" text-anchor="middle">Analog Front-End</text>
+
+                <!-- Jumper Wires -->
+                <!-- 3V3 Red -->
+                <path d="M 60 20 C 60 -5, 230 -5, 230 20" fill="none" stroke="#EF4444" stroke-width="2.5"/>
+                <!-- GND Black -->
+                <path d="M 80 20 C 80 5, 245 5, 245 20" fill="none" stroke="#475569" stroke-width="2.5"/>
+                <!-- OUT Blue -->
+                <path d="M 100 20 C 100 12, 260 12, 260 20" fill="none" stroke="#0284C7" stroke-width="2.5"/>
+                <!-- LO+ Orange -->
+                <path d="M 100 110 C 100 125, 240 125, 240 110" fill="none" stroke="#F97316" stroke-width="2.5"/>
+                <!-- LO- Green -->
+                <path d="M 120 110 C 120 120, 260 120, 260 110" fill="none" stroke="#22C55E" stroke-width="2.5"/>
+              </svg>
+            </div>
+
+            <table class="data-table" style="font-size: 11px;">
+              <thead>
+                <tr>
+                  <th>Sensor Pin</th>
+                  <th>ESP32 GPIO</th>
+                  <th>Wire</th>
+                  <th>Clinical Function</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>3.3V / GND</strong></td>
+                  <td>3V3 / GND</td>
+                  <td>🔴 / ⚫</td>
+                  <td>Regulated Analog Power</td>
+                </tr>
+                <tr>
+                  <td><strong>OUTPUT</strong></td>
+                  <td><strong>GPIO 36 (VP)</strong></td>
+                  <td>🔵 Blue</td>
+                  <td>100 Hz Lead II ECG &amp; EDR</td>
+                </tr>
+                <tr>
+                  <td><strong>LO+ / LO-</strong></td>
+                  <td>GPIO 22 / 23</td>
+                  <td>🟠 / 🟢</td>
+                  <td>Instant Leads-Off Alert</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== COLUMN 2 ==================== -->
+      <!-- Signal Processing, Deep Learning & XAI -->
+      <div class="poster-col">
+
+        <!-- 4. Signal Processing & Dual Feature Extraction -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="sec-icon">🫀</span>
+            <h2>4. Dual ECG &amp; EDR Signal Processing</h2>
+          </div>
+          <div class="card-body">
+            <p>
+              Single-lead electrocardiography captures dual physiological modalities without requiring additional respiratory belts:
+            </p>
+            <ul class="feature-list">
+              <li>
+                <span class="bullet-dot"></span>
+                <span><strong>Lead-II Electrocardiogram:</strong> Filtered via 0.5–45 Hz zero-phase Butterworth bandpass to eliminate baseline wander and high-frequency electromyographic noise.</span>
+              </li>
+              <li>
+                <span class="bullet-dot"></span>
+                <span><strong>ECG-Derived Respiration (EDR):</strong> Derived by tracking respiratory modulation of QRS R-peak amplitudes. During apnea, the thoracic expansion stops, causing immediate <strong>EDR Flatline Cessation</strong>.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 5. Deep Learning Architecture -->
+        <div class="section-card accent-card">
+          <div class="section-header">
+            <span class="sec-icon">🧠</span>
+            <h2>5. SleepApneaNet: 1D-CNN + BiLSTM + Attention</h2>
+          </div>
+          <div class="card-body">
+            <p>
+              Hierarchical neural architecture optimized for lightweight, real-time edge and cloud deployment:
+            </p>
+
+            <div class="dl-pipeline-box">
+              <div class="pipeline-step step-cnn">
+                <span>1️⃣ Multi-Scale 1D-CNN:</span> 3 Conv Blocks (Kernels: 15, 11, 7) + BatchNorm + GELU + MaxPool
+              </div>
+              <div class="pipeline-step step-lstm">
+                <span>2️⃣ Bidirectional LSTM:</span> 2-Layer BiLSTM (Hidden: 64×2 = 128) capturing forward/backward autonomic dynamics
+              </div>
+              <div class="pipeline-step step-attn">
+                <span>3️⃣ Self-Attention Layer:</span> Computes temporal weights $\alpha_t = \text{Softmax}(w^T \tanh(W h_t))$
+              </div>
+              <div class="pipeline-step step-fc">
+                <span>4️⃣ Dense Classifier Head:</span> Dropout(0.4) + Linear(64, 2) outputting Apnea vs Normal probabilities
+              </div>
+            </div>
+
+            <p style="font-size: 11.5px; color: var(--text-dim); margin-top: 6px;">
+              • Total Parameters: <strong>~128,000 (Ultra-lightweight)</strong><br>
+              • Optimization: <strong>AdamW</strong>, Cosine Annealing, <strong>Weighted Cross-Entropy Loss</strong>
+            </p>
+          </div>
+        </div>
+
+        <!-- 6. Explainable AI (XAI) -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="sec-icon">🔍</span>
+            <h2>6. Explainable AI: 1D-GradCAM Saliency</h2>
+          </div>
+          <div class="card-body">
+            <p>
+              To eliminate deep learning "black box" obscurity in clinical settings, <strong>1D-GradCAM</strong> computes gradients back to the final convolutional layer:
+            </p>
+
+            <div class="xai-bar-visual">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); font-family: monospace;">
+                <span>0.0s</span><span>3.0s (Apnea Onset)</span><span>7.5s (Vagal Pause)</span><span>10.0s</span>
+              </div>
+              <!-- Saliency Color Strip -->
+              <div class="saliency-strip">
+                <div class="saliency-segment" style="background: #0284C7;"></div>
+                <div class="saliency-segment" style="background: #0284C7;"></div>
+                <div class="saliency-segment" style="background: #F59E0B;"></div>
+                <div class="saliency-segment" style="background: #EF4444;"></div>
+                <div class="saliency-segment" style="background: #DC2626;"></div>
+                <div class="saliency-segment" style="background: #EF4444;"></div>
+                <div class="saliency-segment" style="background: #F59E0B;"></div>
+                <div class="saliency-segment" style="background: #0284C7;"></div>
+                <div class="saliency-segment" style="background: #0284C7;"></div>
+                <div class="saliency-segment" style="background: #0284C7;"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #FECACA;">
+                <span>Normal Baseline</span>
+                <span style="font-weight: 700;">▲ 94.2% Neural Attention on R-Peak Drop &amp; EDR Suppression</span>
+              </div>
+            </div>
+
+            <p style="font-size: 11.5px; margin-top: 6px;">
+              Clinicians can visually confirm that the model's decision is anchored to true physiological biomarkers (compensatory pause &amp; hypopnea).
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== COLUMN 3 ==================== -->
+      <!-- Results, Poincaré HRV, Web Suite & Conclusion -->
+      <div class="poster-col">
+
+        <!-- 7. Experimental Results & Literature Benchmark -->
+        <div class="section-card accent-card">
+          <div class="section-header">
+            <span class="sec-icon">🏆</span>
+            <h2>7. Benchmark Validation &amp; Results</h2>
+          </div>
+          <div class="card-body">
+            <p>
+              Validated on <strong>PhysioNet Apnea-ECG Database</strong> under strict <strong>Stratified Subject-Wise Holdout Splitting</strong> (Zero patient leakage):
+            </p>
+
+            <div class="metrics-summary-grid">
+              <div class="metric-pill top-val">
+                <div class="lbl">Accuracy</div>
+                <div class="val">84.1%</div>
+              </div>
+              <div class="metric-pill top-val">
+                <div class="lbl">Sensitivity</div>
+                <div class="val">81.7%</div>
+              </div>
+              <div class="metric-pill top-val">
+                <div class="lbl">Specificity</div>
+                <div class="val">86.4%</div>
+              </div>
+              <div class="metric-pill">
+                <div class="lbl">ROC-AUC</div>
+                <div class="val">0.884</div>
+              </div>
+              <div class="metric-pill">
+                <div class="lbl">F1-Score</div>
+                <div class="val">82.9%</div>
+              </div>
+              <div class="metric-pill">
+                <div class="lbl">Cohen's κ</div>
+                <div class="val">0.681</div>
+              </div>
+            </div>
+
+            <!-- Comparison Table -->
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Architecture</th>
+                  <th>Input Signal</th>
+                  <th>Acc</th>
+                  <th>Sens</th>
+                  <th>Spec</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>SVM + HRV (Classic)</td>
+                  <td>R-peak features</td>
+                  <td>74.2%</td>
+                  <td>71.5%</td>
+                  <td>76.1%</td>
+                </tr>
+                <tr>
+                  <td>Random Forest (24 feat.)</td>
+                  <td>ECG + EDR</td>
+                  <td>77.8%</td>
+                  <td>75.3%</td>
+                  <td>79.4%</td>
+                </tr>
+                <tr>
+                  <td>ResNet-1D (18 Layers)</td>
+                  <td>Raw ECG</td>
+                  <td>81.5%</td>
+                  <td>78.9%</td>
+                  <td>83.2%</td>
+                </tr>
+                <tr class="highlight-row">
+                  <td><strong>Sahayak Net (Ours)</strong></td>
+                  <td><strong>Raw 100 Hz ECG</strong></td>
+                  <td><strong>84.1%</strong></td>
+                  <td><strong>81.7%</strong></td>
+                  <td><strong>86.4%</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 8. Autonomic HRV Poincaré Analysis -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="sec-icon">📈</span>
+            <h2>8. Autonomic HRV Poincaré Analysis</h2>
+          </div>
+          <div class="card-body">
+            <p>
+              Quantifies parasympathetic vs sympathetic autonomic dysregulation via 2D nonlinear Poincaré scatter plots ($RR_n$ vs $RR_{n+1}$):
+            </p>
+
+            <div class="poincare-box">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+                <div style="background: rgba(0, 230, 118, 0.08); padding: 6px 8px; border-radius: 6px; border-left: 2px solid #00E676;">
+                  <strong style="color: #00E676;">Normal Breathing:</strong><br>
+                  • $SD_1 = 22.8\text{ ms}$, $SD_2 = 52.4\text{ ms}$<br>
+                  • Healthy "Comet" shaped ellipse<br>
+                  • Balanced autonomic tone
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.08); padding: 6px 8px; border-radius: 6px; border-left: 2px solid #FF4D4F;">
+                  <strong style="color: #FF4D4F;">Severe Sleep Apnea:</strong><br>
+                  • $SD_1 = 58.6\text{ ms}$, $SD_2 = 114.2\text{ ms}$<br>
+                  • Wide "Torpedo" dispersion<br>
+                  • Acute sympathetic hyperactivity
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 9. Clinical Bento ICU Suite & Conclusion -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="sec-icon">🎯</span>
+            <h2>9. Bento Grid ICU Suite &amp; Conclusion</h2>
+          </div>
+          <div class="card-body">
+            <ul class="feature-list">
+              <li>
+                <span class="bullet-dot"></span>
+                <span><strong>No-Scroll ICU Bento Grid:</strong> Left 65% Lead-II Oscilloscope + EDR Respiration trace; Right 35% Diagnostic Verdict &amp; Poincaré Matrix.</span>
+              </li>
+              <li>
+                <span class="bullet-dot"></span>
+                <span><strong>1-Click Clinical PDF Export:</strong> Generates formalized diagnostic reports containing AHI severity, risk metrics, and Bengali guidance.</span>
+              </li>
+              <li>
+                <span class="bullet-dot"></span>
+                <span><strong>Conclusion:</strong> Sahayak demonstrates that lightweight 1D deep neural networks running on affordable ESP32 hardware ($15 total BOM) can achieve hospital-grade sleep apnea screening and triage for underserved populations.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- ==================== POSTER FOOTER ==================== -->
+    <footer class="poster-footer">
+      <div>
+        <strong>Repository:</strong> github.com/MLBioEngineer/sahayak &nbsp;|&nbsp;
+        <strong>Live Production:</strong> sahayak-medai.vercel.app &nbsp;|&nbsp;
+        <strong>Backend API:</strong> sahayak-lkhm.onrender.com
+      </div>
+      <div>
+        Presented at <strong>Biomedical Engineering &amp; Healthcare AI Capstone Showcase 2026</strong>
+      </div>
+    </footer>
+
+  </div>
+
+</body>
+</html>

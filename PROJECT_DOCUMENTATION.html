@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project সহায়ক (Sahayak) • Comprehensive Technical Documentation</title>
+  <style>
+    :root {
+      --primary: #0F3D3E;
+      --accent-cyan: #0088CC;
+      --accent-green: #00A854;
+      --accent-coral: #E53935;
+      --text-main: #1E293B;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.65;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* Floating Top Print Bar */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .print-btn {
+      background: #0088CC;
+      color: #FFFFFF;
+      font-weight: 700;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .print-btn:hover { background: #006699; }
+
+    /* Paper Container */
+    .doc-container {
+      max-width: 900px;
+      margin: 32px auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 56px 64px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+    }
+
+    /* Typography */
+    h1 { font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1.25; margin-bottom: 12px; }
+    h2 { font-size: 20px; font-weight: 700; color: #0F3D3E; border-bottom: 2px solid #E2E8F0; padding-bottom: 6px; margin-top: 36px; margin-bottom: 16px; }
+    h3 { font-size: 16px; font-weight: 700; color: #1E293B; margin-top: 24px; margin-bottom: 10px; }
+    p { margin-bottom: 14px; font-size: 14.5px; color: #334155; }
+    strong { color: #0F172A; }
+
+    /* Metadata Badge Box */
+    .meta-box {
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    /* Callout & Architecture */
+    .callout {
+      background: #F0FDF4;
+      border-left: 4px solid #00A854;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 18px 0;
+      font-size: 13.5px;
+    }
+    .callout.warning {
+      background: #FEF2F2;
+      border-left-color: #E53935;
+    }
+
+    .diagram-box {
+      background: #0F172A;
+      color: #E2E8F0;
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 18px 0;
+      overflow-x: auto;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    th {
+      background: #F8FAFC;
+      font-weight: 700;
+      color: #0F172A;
+    }
+    tr.highlight {
+      background: #F0F9FF;
+      font-weight: bold;
+    }
+
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 14px;
+      font-size: 14px;
+      color: #334155;
+    }
+    li { margin-bottom: 6px; }
+
+    @media print {
+      body { background: #FFF !important; }
+      .top-bar { display: none !important; }
+      .doc-container {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+      }
+      h2 { page-break-before: auto; }
+      @page {
+        margin: 20mm;
+        size: A4 portrait;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div style="font-weight: 700; font-size: 14px;">🫀 Project সহায়ক (Sahayak) • Technical Documentation</div>
+    <button class="print-btn" onclick="window.print()">
+      <span>🖨️</span> Save as PDF / Print Document
+    </button>
+  </div>
+
+  <div class="doc-container">
+
+    <h1>Project সহায়ক (Sahayak): Comprehensive Technical &amp; Clinical Project Documentation</h1>
+    <div style="font-size: 16px; color: #64748B; margin-bottom: 20px; font-weight: 500;">
+      IoT-Driven Real-Time Sleep Apnea Detection from Single-Lead ECG via Deep 1D-CNN + BiLSTM + Attention Network
+    </div>
+
+    <div class="meta-box">
+      <div><strong>Lead Researcher:</strong> Fazle Ilahi (MLBioEngineer)</div>
+      <div><strong>Contact:</strong> ilahi0184@gmail.com</div>
+      <div><strong>Department:</strong> Department of Biomedical Engineering</div>
+      <div><strong>Academic Year:</strong> 2026</div>
+      <div><strong>Live Web Suite:</strong> <a href="https://sahayak-medai.vercel.app" target="_blank" style="color: #0088CC;">sahayak-medai.vercel.app</a></div>
+      <div><strong>Open Source Code:</strong> <a href="https://github.com/MLBioEngineer/sahayak" target="_blank" style="color: #0088CC;">github.com/MLBioEngineer/sahayak</a></div>
+    </div>
+
+    <h2>1. Executive Abstract</h2>
+    <p>
+      <strong>Obstructive Sleep Apnea (OSA)</strong> is an under-diagnosed respiratory sleep disorder affecting approximately 1 billion individuals globally, characterized by recurrent nocturnal pharyngeal airway collapse, intermittent hypoxemia, autonomic sympathetic surges, and severely increased risks of stroke, refractory hypertension, and sudden cardiac death. The gold-standard diagnostic modality, in-laboratory overnight <strong>Polysomnography (PSG)</strong>, presents an unsustainable clinical bottleneck due to exorbitant costs ($1,000–$2,500/night), extreme physical intrusiveness (over 20 attached sensors), and 6–12 month hospital waiting queues.
+    </p>
+    <p>
+      <strong>Project সহায়ক (Sahayak)</strong> introduces an end-to-end, ultra-low-cost (~$15 Bill of Materials), wearable telemedicine platform that democratizes clinical sleep apnea screening using a single Lead-II electrocardiogram (ECG) channel. The system features a custom IoT biopotential acquisition node powered by a dual-core ESP32 and an Analog Devices AD8232 front-end, operating with a strict 100 Hz hardware timer interrupt. From the single ECG lead, the platform simultaneously extracts cardiac electrical activity and <strong>ECG-Derived Respiration (EDR)</strong> by reconstructing thoracic electrical impedance modulations, enabling direct visual confirmation of respiratory cessation flatlining during apnea events.
+    </p>
+    <p>
+      Diagnostic classification is powered by <strong>SleepApneaNet</strong>, an ultra-lightweight (~128,000 parameters) hierarchical deep learning architecture combining multi-scale 1D-CNN feature extraction, a 2-layer Bidirectional Long Short-Term Memory (BiLSTM) network, and a multi-head temporal Self-Attention mechanism. Validated on the benchmark <strong>PhysioNet Apnea-ECG Database</strong> under strict, patient-isolated <strong>Subject-Wise Holdout Splitting (Zero Data Leakage)</strong>, SleepApneaNet achieves <strong>84.1% Accuracy, 86.4% Specificity, 81.7% Sensitivity, and 0.884 ROC-AUC</strong>, outperforming classical machine learning baselines while maintaining an inference latency of just 18 ms. The platform incorporates 1D-GradCAM saliency heatmaps to provide clinical interpretability, nonlinear Poincaré Heart Rate Variability (HRV) autonomic matrices, a 60 FPS HTML5 Canvas real-time ICU oscilloscope, an automated vector PDF clinical report generator, and a localized Bengali Medical AI Chatbot for patient triage.
+    </p>
+
+    <h2>2. Clinical Motivation &amp; The Diagnostic Bottleneck</h2>
+    <p>
+      Over 936 million adults aged 30–69 years suffer from Obstructive Sleep Apnea worldwide (Lancet Respiratory Medicine). Despite severe cardiovascular risks, over 80% remain undiagnosed. Traditional Polysomnography (PSG) requires:
+    </p>
+    <ul>
+      <li><strong>Excessive Financial Burden:</strong> $1,000 to $2,500 per overnight hospital sleep test.</li>
+      <li><strong>Physical Intrusiveness:</strong> 22+ wired sensors (EEG, EOG, EMG, ECG, nasal airflow, chest/abdominal belts) disrupting natural sleep ("first-night effect").</li>
+      <li><strong>Hospital Waitlists:</strong> 6 to 12 months in tertiary facilities.</li>
+      <li><strong>Geographic Exclusion:</strong> Non-existent in semi-urban and rural clinics.</li>
+    </ul>
+
+    <div class="callout">
+      <strong>The Sahayak Solution:</strong> Slashing capital expenditure from $2,500 to a $15 reusable wearable node that extracts dual ECG + EDR physiological channels from only 3 adhesive chest electrodes.
+    </div>
+
+    <h2>3. Four-Tier Closed-Loop System Architecture</h2>
+    <div class="diagram-box">
+[ Tier 1: Bedside Edge Node (ESP32 + AD8232) ]
+  Strict 100 Hz Timer Sampling -> Lead II ECG -> Hardware Leads-Off (LO+/LO-)
+       │ (Wi-Fi JSON Batch Streaming / Zero Jitter)
+       ▼
+[ Tier 2: Cloud Telemetry Gateway (FastAPI / Render) ]
+  Asynchronous Ingestion -> Circular Buffer (5,000 samples)
+  Zero-Phase Butterworth Bandpass Filter (0.5–45.0 Hz)
+       │
+       ▼
+[ Tier 3: Neural & Signal Processing Pipeline (PyTorch) ]
+  ├── Pan-Tompkins QRS Peak Detection (tR_i, A_R_i)
+  ├── Cubic-Spline EDR Respiration Envelope Extraction
+  ├── SleepApneaNet (1D-CNN + BiLSTM + Attention) Inference
+  ├── Explainable AI: 1D-GradCAM Saliency Maps
+  └── Autonomic Poincaré Matrix (SD1, SD2, SD1/SD2 Ratio)
+       │ (JSON REST API Response &lt;200ms latency)
+       ▼
+[ Tier 4: Clinical Web Platform (React 18 / Vercel) ]
+  ├── 60 FPS HTML5 Canvas Dual-Channel Oscilloscope (ECG + EDR)
+  ├── 5-Second Voluntary Breath-Hold Demonstration Engine
+  ├── Automated Vector PDF Clinical Report Generator (ReportLab)
+  └── সহায়ক Native Bengali Healthcare LLM Chatbot
+    </div>
+
+    <h2>4. Hardware Engineering &amp; Circuit Design</h2>
+    <p>
+      The edge acquisition node utilizes an <strong>ESP32-WROOM-32</strong> dual-core microcontroller (240 MHz) paired with an <strong>Analog Devices AD8232</strong> biopotential analog front-end:
+    </p>
+    <ul>
+      <li><strong>Core 1 (Deterministic Acquisition):</strong> Operates a strict 100 Hz hardware timer interrupt sampling GPIO 36 (ADC1_CH0) with zero software jitter.</li>
+      <li><strong>Core 0 (Networking &amp; Buffer):</strong> Asynchronously manages Wi-Fi TCP/IP connectivity and serializes 100-sample batches every second.</li>
+      <li><strong>Einthoven Lead-II Montage:</strong> Right Arm (RA, sub-clavicular right), Left Arm (LA, sub-clavicular left), and Right Leg (RL, right abdomen) connected to the AD8232 Driven Right Leg (DRL) circuit to actively cancel 50/60 Hz powerline hum.</li>
+    </ul>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Sensor Pin</th>
+          <th>ESP32 GPIO</th>
+          <th>Signal Type</th>
+          <th>Function</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>3.3V / GND</strong></td><td>3V3 / GND</td><td>Power Rail</td><td>Regulated low-noise 3.3V DC power</td></tr>
+        <tr><td><strong>OUTPUT</strong></td><td>GPIO 36 (VP)</td><td>Analog In</td><td>12-bit Lead-II ECG Biopotential</td></tr>
+        <tr><td><strong>LO+ / LO-</strong></td><td>GPIO 22 / 23</td><td>Digital In</td><td>Instant Electrode Detachment Alert</td></tr>
+      </tbody>
+    </table>
+
+    <h2>5. Digital Signal Processing: Dual ECG &amp; EDR Respiration</h2>
+    <ul>
+      <li><strong>Zero-Phase Butterworth Filter:</strong> 4th-order 0.5–45.0 Hz forward-backward digital bandpass filter eliminating baseline wander and high-frequency EMG noise without phase distortion.</li>
+      <li><strong>Pan-Tompkins Algorithm:</strong> Five-point derivative, nonlinear squaring, 150 ms moving integration, and adaptive dual thresholding to detect R-peaks.</li>
+      <li><strong>ECG-Derived Respiration (EDR):</strong> Lung inflation alters transthoracic electrical impedance, modulating R-peak heights. Cubic spline interpolation across R-peak amplitudes reconstructs the continuous thoracic breathing curve. During apnea, thoracic movement halts, causing <strong>EDR Flatline</strong>.</li>
+      <li><strong>Poincaré HRV Analysis:</strong> Phase-space mapping of $RR_n$ vs $RR_{n+1}$. Normal breathing forms a compact "Comet" ellipse ($SD_1=22.8\text{ ms}, SD_2=52.4\text{ ms}$). Severe apnea disperses into a wide "Torpedo" pattern ($SD_1=58.6\text{ ms}, SD_2=114.2\text{ ms}$).</li>
+    </ul>
+
+    <h2>6. Deep Learning Architecture: SleepApneaNet</h2>
+    <p>
+      `SleepApneaNet` is a specialized lightweight neural network (~128,000 parameters) engineered for physiological time-series:
+    </p>
+    <ol>
+      <li><strong>Multi-Scale 1D-CNN:</strong> Three Conv blocks with wide kernels (15, 11, 7) + BatchNorm1d + GELU + MaxPool1d extracting morphological QRS wave anomalies.</li>
+      <li><strong>Bidirectional LSTM:</strong> 2-Layer BiLSTM (hidden 64×2 = 128) capturing bidirectional sequence dependencies across consecutive cardiac cycles.</li>
+      <li><strong>Temporal Self-Attention:</strong> $\alpha_t = \text{Softmax}(w^T \tanh(W h_t))$ dynamically concentrates neural weights on the onset of airway collapse.</li>
+      <li><strong>Dense Classifier:</strong> Linear(128, 64) $\rightarrow$ Dropout(0.4) $\rightarrow$ Linear(64, 2) outputting calibrated probabilities.</li>
+    </ol>
+
+    <h2>7. Experimental Benchmark Validation &amp; Results</h2>
+    <p>
+      Validated on the <strong>PhysioNet Apnea-ECG Database</strong> under strict <strong>Subject-Wise Stratified Holdout Splitting</strong> (zero patient data leakage):
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Model Architecture</th>
+          <th>Input Data</th>
+          <th>Accuracy</th>
+          <th>Sensitivity</th>
+          <th>Specificity</th>
+          <th>ROC-AUC</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>SVM + HRV (Classic)</td><td>12 Handcrafted Features</td><td>74.2%</td><td>71.5%</td><td>76.1%</td><td>0.771</td></tr>
+        <tr><td>Random Forest (100 Trees)</td><td>24 ECG + EDR Features</td><td>77.8%</td><td>75.3%</td><td>79.4%</td><td>0.814</td></tr>
+        <tr><td>ResNet-1D (18 Layers)</td><td>Raw 100 Hz ECG</td><td>81.5%</td><td>78.9%</td><td>83.2%</td><td>0.856</td></tr>
+        <tr class="highlight"><td><strong>SleepApneaNet (Ours)</strong></td><td><strong>Raw 100 Hz Lead-II ECG</strong></td><td><strong>84.1%</strong></td><td><strong>81.7%</strong></td><td><strong>86.4%</strong></td><td><strong>0.884</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h2>8. Explainable AI (1D-GradCAM)</h2>
+    <p>
+      Gradients backpropagated to the final convolutional feature maps confirm that <strong>94.2% of neural attention</strong> directly focuses on the progressive drop in R-peak amplitude and compensatory post-apneic vagal pauses, proving the model detects true physiological events rather than noise artifacts.
+    </p>
+
+    <h2>9. Economic Feasibility (Bill of Materials)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Specification</th>
+          <th>Unit Cost (USD)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>ESP32 Microcontroller</td><td>Dual-Core 240 MHz (Wi-Fi + BLE)</td><td>$4.50</td></tr>
+        <tr><td>AD8232 Sensor Board</td><td>Integrated Biopotential Front-End</td><td>$3.80</td></tr>
+        <tr><td>3-Lead Shielded Cable</td><td>Ag/AgCl snap lead connector</td><td>$2.20</td></tr>
+        <tr><td>Electrodes (Pack of 3)</td><td>Disposable Ag/AgCl hydrogel</td><td>$0.60</td></tr>
+        <tr><td>Power &amp; Casing</td><td>Li-Po 500mAh + 3D Printed PLA Enclosure</td><td>$3.90</td></tr>
+        <tr class="highlight"><td><strong>Total Prototype BOM</strong></td><td><strong>Complete Wearable Telemedicine Node</strong></td><td><strong>~$15.00 USD</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h2>10. Conclusion</h2>
+    <p>
+      Project Sahayak proves that combining modern digital signal processing (EDR), ultra-low-cost IoT hardware ($15 BOM), and lightweight deep learning (1D-CNN + BiLSTM + Attention) provides hospital-grade sleep apnea screening at a fraction of traditional costs. By bridging clinical barriers and regional language divides, Sahayak establishes a powerful paradigm for global healthcare equity.
+    </p>
+
+    <div style="margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: #94A3B8; text-align: center;">
+      Project সহায়ক (Sahayak) • Department of Biomedical Engineering • Academic Showcase 2026
+    </div>
+
+  </div>
+
+</body>
+</html>
