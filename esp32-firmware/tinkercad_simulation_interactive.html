@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.4); }
+    }
+    .led-blink { animation: pulse-glow 0.8s infinite; }
+  </style>
+</head>
+<body class="bg-transparent text-[var(--foreground)] antialiased p-3">
+  <div class="bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl p-5 shadow-xl max-w-4xl mx-auto">
+    
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between border-b border-[var(--border)] pb-4 mb-4 gap-2">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xl">⚡</span>
+          <h2 class="font-bold text-lg text-[var(--foreground)]">Tinkercad ESP32 + AD8232 Circuit Simulation</h2>
+          <span class="text-xs bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full font-mono">HIL Interactive</span>
+        </div>
+        <p class="text-xs text-[var(--muted-foreground)] mt-0.5">Real-time Lead II ECG Telemetry &amp; EDR Respiration Waveform Generator</p>
+      </div>
+      
+      <!-- Simulation Controls -->
+      <div class="flex items-center gap-2">
+        <button id="btn-power" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+          <span id="power-icon">▶</span>
+          <span id="power-text">Start Simulation</span>
+        </button>
+        <button id="btn-toggle-photo" class="px-3 py-1.5 bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:bg-[var(--border)] rounded-lg text-xs font-medium border border-[var(--border)] transition">
+          📸 View HD Render
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode Selector Pills -->
+    <div class="flex flex-wrap items-center gap-2 mb-4 bg-black/20 p-2 rounded-xl border border-[var(--border)]">
+      <span class="text-xs font-semibold text-[var(--muted-foreground)] px-2">Clinical Scenarios:</span>
+      <button id="mode-normal" class="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-medium transition hover:bg-emerald-500/30">
+        🟢 Normal Sinus &amp; Breathing (~15 bpm)
+      </button>
+      <button id="mode-apnea" class="px-3 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-medium transition hover:bg-rose-500/30">
+        🔴 Sleep Apnea / 5s Breath-Hold (Flatline EDR)
+      </button>
+      <button id="mode-leads-off" class="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-medium transition hover:bg-amber-500/30">
+        ⚠️ Disconnect Leads (LO+ Trigger)
+      </button>
+    </div>
+
+    <!-- HD Photo Modal Overlay (Collapsible) -->
+    <div id="photo-container" class="hidden mb-4 bg-black/40 p-3 rounded-xl border border-[var(--border)] text-center">
+      <p class="text-xs font-semibold text-cyan-400 mb-2">📸 Photorealistic Studio 3D Hardware Simulation Render (ESP32 + AD8232)</p>
+      <img src="file:///C:/Users/pc/.gemini/antigravity/brain/9cb26262-480f-4f28-8f6a-6eb2bf15be18/esp32_ad8232_circuit_clean_1794570940519.jpg" 
+           alt="Tinkercad Hardware Simulation" 
+           class="max-h-72 mx-auto rounded-lg shadow-lg border border-white/10 object-contain" />
+    </div>
+
+    <!-- Virtual Breadboard & Tinkercad Wiring Diagram -->
+    <div class="bg-[#080d14] border border-cyan-500/30 rounded-xl p-4 mb-4 relative overflow-hidden">
+      <div class="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-2 font-mono">
+        <span>BREADBOARD LAYOUT (TOP-DOWN SIMULATION)</span>
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1.5"><span id="led-wifi" class="w-2.5 h-2.5 rounded-full bg-cyan-400 opacity-30"></span> Wi-Fi TX (100Hz)</span>
+          <span class="flex items-center gap-1.5"><span id="led-heart" class="w-2.5 h-2.5 rounded-full bg-rose-500 opacity-30"></span> QRS Sync</span>
+        </div>
+      </div>
+
+      <!-- SVG Circuit Graphic -->
+      <svg viewBox="0 0 850 260" class="w-full h-auto max-h-64 rounded-lg">
+        <!-- Breadboard base -->
+        <rect x="10" y="10" width="830" height="240" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+        <line x1="25" y1="25" x2="825" y2="25" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,3"/>
+        <line x1="25" y1="33" x2="825" y2="33" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,3"/>
+
+        <!-- Holes pattern -->
+        <g opacity="0.25">
+          <pattern id="grid-holes" width="14" height="14" patternUnits="userSpaceOnUse">
+            <circle cx="7" cy="7" r="2" fill="#475569"/>
+          </pattern>
+          <rect x="25" y="45" width="800" height="190" fill="url(#grid-holes)"/>
+        </g>
+        <rect x="25" y="135" width="800" height="6" fill="#e2e8f0"/>
+
+        <!-- ESP32 Module -->
+        <g transform="translate(60, 65)">
+          <rect width="180" height="140" rx="6" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+          <rect x="20" y="25" width="90" height="80" rx="3" fill="#94a3b8" stroke="#cbd5e1"/>
+          <text x="65" y="65" fill="#0f172a" font-size="9" font-weight="bold" text-anchor="middle">ESP-WROOM-32</text>
+          <path d="M 115 35 L 165 35 L 165 48 L 125 48 L 125 60 L 165 60 L 165 72 L 125 72 L 125 85 L 165 85" fill="none" stroke="#d97706" stroke-width="2"/>
+          <rect x="-10" y="55" width="12" height="30" rx="2" fill="#cbd5e1"/>
+          <!-- Active Wi-Fi Indicator LED -->
+          <circle id="svg-wifi-led" cx="15" cy="18" r="3.5" fill="#38bdf8" opacity="0.4"/>
+          <!-- Pin connections -->
+          <text x="18" y="-6" fill="#ef4444" font-size="8" font-weight="bold">3V3</text>
+          <text x="38" y="-6" fill="#64748b" font-size="8" font-weight="bold">GND</text>
+          <text x="58" y="-6" fill="#38bdf8" font-size="8" font-weight="bold">VP(36)</text>
+          <text x="135" y="152" fill="#f97316" font-size="8" font-weight="bold">G22</text>
+          <text x="155" y="152" fill="#22c55e" font-size="8" font-weight="bold">G23</text>
+          <text x="90" y="125" fill="#38bdf8" font-size="11" font-weight="bold" text-anchor="middle">ESP32 DevKit</text>
+        </g>
+
+        <!-- AD8232 ECG Sensor Module -->
+        <g transform="translate(480, 60)">
+          <rect width="170" height="150" rx="6" fill="#b91c1c" stroke="#991b1b" stroke-width="2"/>
+          <!-- IC -->
+          <rect x="65" y="50" width="35" height="35" rx="2" fill="#0f172a" stroke="#334155"/>
+          <text x="82" y="72" fill="#ffffff" font-size="7" font-weight="bold" text-anchor="middle">AD8232</text>
+          <!-- 3.5mm Jack -->
+          <rect x="135" y="45" width="40" height="50" rx="4" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+          <circle cx="168" cy="70" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="2"/>
+          <!-- Heart Beat Indicator LED -->
+          <circle id="svg-heart-led" cx="25" cy="130" r="4" fill="#ef4444" opacity="0.4"/>
+          <text x="35" y="133" fill="#ffffff" font-size="7">HR LED</text>
+          <!-- Labels -->
+          <text x="15" y="22" fill="#ffffff" font-size="9" font-weight="bold">3.3V</text>
+          <text x="15" y="44" fill="#ffffff" font-size="9" font-weight="bold">GND</text>
+          <text x="15" y="66" fill="#ffffff" font-size="9" font-weight="bold">OUT</text>
+          <text x="15" y="88" fill="#ffffff" font-size="9" font-weight="bold">LO-</text>
+          <text x="15" y="110" fill="#ffffff" font-size="9" font-weight="bold">LO+</text>
+          <text x="85" y="125" fill="#fecaca" font-size="10" font-weight="bold" text-anchor="middle">AD8232 Monitor</text>
+        </g>
+
+        <!-- Jumper Wires with Realistic Curves -->
+        <!-- 3.3V (Red) -->
+        <path d="M 78 70 C 78 15, 495 15, 495 78" fill="none" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- GND (Black) -->
+        <path d="M 98 70 C 98 30, 495 30, 495 100" fill="none" stroke="#0f172a" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- OUTPUT to VP/36 (Blue) -->
+        <path d="M 118 70 C 118 45, 495 45, 495 122" fill="none" stroke="#0284c7" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- LO+ to G22 (Orange) -->
+        <path d="M 195 200 C 230 245, 470 245, 495 166" fill="none" stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- LO- to G23 (Green) -->
+        <path d="M 215 200 C 245 230, 470 220, 495 144" fill="none" stroke="#22c55e" stroke-width="3.5" stroke-linecap="round"/>
+
+        <!-- 3-Lead Electrode Cable & Snap Connectors -->
+        <g transform="translate(685, 125)">
+          <path d="M 0 5 C 30 -5, 45 25, 55 45" fill="none" stroke="#1e293b" stroke-width="6"/>
+          <!-- RA Red -->
+          <path d="M 55 45 C 65 55, 60 75, 50 90" fill="none" stroke="#ef4444" stroke-width="3"/>
+          <circle cx="50" cy="92" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"/>
+          <text x="50" y="95" fill="#fff" font-size="7" font-weight="bold" text-anchor="middle">RA</text>
+          <!-- LA Yellow -->
+          <path d="M 55 45 C 70 55, 75 75, 70 90" fill="none" stroke="#eab308" stroke-width="3"/>
+          <circle cx="70" cy="92" r="7" fill="#eab308" stroke="#ffffff" stroke-width="1.5"/>
+          <text x="70" y="95" fill="#000" font-size="7" font-weight="bold" text-anchor="middle">LA</text>
+          <!-- RL Green -->
+          <path d="M 55 45 C 80 55, 90 75, 90 90" fill="none" stroke="#22c55e" stroke-width="3"/>
+          <circle cx="90" cy="92" r="7" fill="#22c55e" stroke="#ffffff" stroke-width="1.5"/>
+          <text x="90" y="95" fill="#fff" font-size="7" font-weight="bold" text-anchor="middle">RL</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Live Tinkercad Virtual Oscilloscope & Telemetry Dashboard -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      
+      <!-- Virtual Oscilloscope Screen (2 cols) -->
+      <div class="md:col-span-2 bg-[#05080c] border border-[var(--border)] rounded-xl p-3 shadow-inner relative">
+        <div class="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1.5 px-1 font-mono">
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> CH1: Lead II ECG (100 Hz)</span>
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> CH2: EDR Respiration</span>
+        </div>
+
+        <canvas id="scopeCanvas" width="560" height="220" class="w-full h-52 block rounded-lg bg-[#070d14] border border-cyan-500/20"></canvas>
+
+        <div class="flex items-center justify-between mt-2 text-[11px] font-mono text-[var(--muted-foreground)] px-1">
+          <span>Vp-p: <strong id="val-vpp" class="text-white">2.14 V</strong></span>
+          <span>Sample: <strong id="val-fs" class="text-white">100 Hz</strong></span>
+          <span>BPM: <strong id="val-bpm" class="text-emerald-400">74</strong></span>
+          <span>Status: <strong id="val-status" class="text-emerald-400">Normal</strong></span>
+        </div>
+      </div>
+
+      <!-- Live Hardware Telemetry Panel (1 col) -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 flex flex-col justify-between">
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-3 flex items-center gap-2">
+            <span>📡</span> Live Telemetry Bus
+          </h4>
+
+          <div class="space-y-2.5 text-xs font-mono">
+            <div class="flex justify-between items-center border-b border-[var(--border)] pb-1.5">
+              <span class="text-[var(--muted-foreground)]">GPIO 36 (ADC):</span>
+              <span id="tel-adc" class="text-cyan-400 font-bold">1.82 V</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-[var(--border)] pb-1.5">
+              <span class="text-[var(--muted-foreground)]">LO+ (GPIO 22):</span>
+              <span id="tel-lo-plus" class="text-emerald-400 font-bold">0 (OK)</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-[var(--border)] pb-1.5">
+              <span class="text-[var(--muted-foreground)]">LO- (GPIO 23):</span>
+              <span id="tel-lo-minus" class="text-emerald-400 font-bold">0 (OK)</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-[var(--border)] pb-1.5">
+              <span class="text-[var(--muted-foreground)]">Packets Sent:</span>
+              <span id="tel-packets" class="text-white font-bold">148</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-[var(--muted-foreground)]">EDR State:</span>
+              <span id="tel-edr" class="text-cyan-400 font-bold">~15 bpm Sinus</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Verdict Badge in Telemetry -->
+        <div id="ai-verdict-box" class="mt-4 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-center">
+          <div class="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">Sahayak AI Verdict</div>
+          <div id="ai-verdict-text" class="text-xs font-bold text-white mt-0.5">Healthy Normal Sinus (96.4%)</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // State
+    let isRunning = true;
+    let currentMode = "normal"; // 'normal', 'apnea', 'leads_off'
+    let packetCount = 120;
+    let timeIndex = 0;
+
+    // DOM Elements
+    const canvas = document.getElementById("scopeCanvas");
+    const ctx = canvas.getContext("2d");
+    const btnPower = document.getElementById("btn-power");
+    const powerText = document.getElementById("power-text");
+    const powerIcon = document.getElementById("power-icon");
+    const btnTogglePhoto = document.getElementById("btn-toggle-photo");
+    const photoContainer = document.getElementById("photo-container");
+
+    const modeNormal = document.getElementById("mode-normal");
+    const modeApnea = document.getElementById("mode-apnea");
+    const modeLeadsOff = document.getElementById("mode-leads-off");
+
+    const ledWifi = document.getElementById("led-wifi");
+    const ledHeart = document.getElementById("led-heart");
+    const svgWifiLed = document.getElementById("svg-wifi-led");
+    const svgHeartLed = document.getElementById("svg-heart-led");
+
+    const valBpm = document.getElementById("val-bpm");
+    const valStatus = document.getElementById("val-status");
+    const valVpp = document.getElementById("val-vpp");
+    const telAdc = document.getElementById("tel-adc");
+    const telLoPlus = document.getElementById("tel-lo-plus");
+    const telLoMinus = document.getElementById("tel-lo-minus");
+    const telPackets = document.getElementById("tel-packets");
+    const telEdr = document.getElementById("tel-edr");
+    const aiVerdictBox = document.getElementById("ai-verdict-box");
+    const aiVerdictText = document.getElementById("ai-verdict-text");
+
+    // Toggle Photo
+    btnTogglePhoto.addEventListener("click", () => {
+      photoContainer.classList.toggle("hidden");
+    });
+
+    // Toggle Power
+    btnPower.addEventListener("click", () => {
+      isRunning = !isRunning;
+      powerText.textContent = isRunning ? "Pause Simulation" : "Start Simulation";
+      powerIcon.textContent = isRunning ? "⏸" : "▶";
+      btnPower.className = isRunning
+        ? "px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition"
+        : "px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition";
+    });
+
+    // Modes
+    modeNormal.addEventListener("click", () => setMode("normal"));
+    modeApnea.addEventListener("click", () => setMode("apnea"));
+    modeLeadsOff.addEventListener("click", () => setMode("leads_off"));
+
+    function setMode(mode) {
+      currentMode = mode;
+      if (mode === "normal") {
+        valBpm.textContent = "74";
+        valStatus.textContent = "Normal Sinus";
+        valStatus.className = "text-emerald-400";
+        valVpp.textContent = "2.14 V";
+        telLoPlus.textContent = "0 (OK)";
+        telLoPlus.className = "text-emerald-400 font-bold";
+        telLoMinus.textContent = "0 (OK)";
+        telLoMinus.className = "text-emerald-400 font-bold";
+        telEdr.textContent = "~15 bpm Sinus";
+        telEdr.className = "text-cyan-400 font-bold";
+        aiVerdictBox.className = "mt-4 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-center";
+        aiVerdictText.textContent = "Healthy Normal Sinus (96.4%)";
+      } else if (mode === "apnea") {
+        valBpm.textContent = "58";
+        valStatus.textContent = "Apnea Cessation";
+        valStatus.className = "text-rose-400";
+        valVpp.textContent = "0.95 V";
+        telLoPlus.textContent = "0 (OK)";
+        telLoMinus.textContent = "0 (OK)";
+        telEdr.textContent = "FLATLINE (0 bpm)";
+        telEdr.className = "text-rose-400 font-bold";
+        aiVerdictBox.className = "mt-4 p-2.5 rounded-lg bg-rose-500/15 border border-rose-500/40 text-center";
+        aiVerdictText.textContent = "⚠️ Sleep Apnea Detected (94.5%)";
+      } else if (mode === "leads_off") {
+        valBpm.textContent = "--";
+        valStatus.textContent = "Leads Disconnected";
+        valStatus.className = "text-amber-400";
+        valVpp.textContent = "0.00 V";
+        telLoPlus.textContent = "1 (DETACHED)";
+        telLoPlus.className = "text-rose-400 font-bold";
+        telLoMinus.textContent = "1 (DETACHED)";
+        telLoMinus.className = "text-rose-400 font-bold";
+        telEdr.textContent = "DISCONNECTED";
+        telEdr.className = "text-amber-400 font-bold";
+        aiVerdictBox.className = "mt-4 p-2.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-center";
+        aiVerdictText.textContent = "⚠️ Leads-Off Alert (Check RA/LA)";
+      }
+    }
+
+    // Oscilloscope Animation Loop
+    const ecgBuffer = new Array(280).fill(0);
+    const edrBuffer = new Array(280).fill(0);
+
+    function getSynthesizedPoint(t, mode) {
+      if (mode === "leads_off") {
+        return { ecg: (Math.random() - 0.5) * 0.05, edr: 0, isQRS: false };
+      }
+      
+      const beatPeriod = mode === "apnea" ? 100 : 75; // slower during apnea
+      const pos = t % beatPeriod;
+      let ecg = 0;
+      let isQRS = false;
+      const amp = mode === "apnea" ? 0.45 : 1.1;
+
+      // P wave
+      if (pos >= 15 && pos <= 24) ecg += 0.15 * Math.sin(((pos - 15) / 9) * Math.PI) * amp;
+      // Q wave
+      if (pos >= 28 && pos <= 30) ecg -= 0.18 * amp;
+      // R wave (prominent peak)
+      if (pos >= 31 && pos <= 33) {
+        ecg += 1.85 * amp;
+        isQRS = true;
+      }
+      // S wave
+      if (pos >= 34 && pos <= 37) ecg -= 0.40 * amp;
+      // T wave
+      if (pos >= 45 && pos <= 58) ecg += 0.32 * Math.sin(((pos - 45) / 13) * Math.PI) * amp;
+
+      // Noise & drift
+      ecg += (Math.random() - 0.5) * 0.04;
+
+      // EDR Respiration
+      let edr = 0;
+      if (mode === "apnea") {
+        // Flatlined respiration during apnea
+        edr = 0.35 + (Math.random() - 0.5) * 0.03;
+      } else {
+        // Sinusoidal healthy respiration
+        edr = 0.85 + 0.35 * Math.sin((t / 25) * Math.PI * 0.25);
+      }
+
+      return { ecg, edr, isQRS };
+    }
+
+    function renderScope() {
+      if (isRunning) {
+        timeIndex++;
+        const pt = getSynthesizedPoint(timeIndex, currentMode);
+        ecgBuffer.shift();
+        ecgBuffer.push(pt.ecg);
+        edrBuffer.shift();
+        edrBuffer.push(pt.edr);
+
+        // Update telemetry
+        telAdc.textContent = (1.65 + pt.ecg * 0.6).toFixed(2) + " V";
+        if (timeIndex % 20 === 0) {
+          packetCount++;
+          telPackets.textContent = packetCount;
+          // Flash Wi-Fi LED
+          ledWifi.style.opacity = "1";
+          svgWifiLed.setAttribute("opacity", "1");
+          setTimeout(() => {
+            ledWifi.style.opacity = "0.3";
+            svgWifiLed.setAttribute("opacity", "0.4");
+          }, 150);
+        }
+
+        // Flash Heart LED on R-peak
+        if (pt.isQRS) {
+          ledHeart.style.opacity = "1";
+          svgHeartLed.setAttribute("opacity", "1");
+          setTimeout(() => {
+            ledHeart.style.opacity = "0.3";
+            svgHeartLed.setAttribute("opacity", "0.4");
+          }, 100);
+        }
+      }
+
+      // Draw Grid
+      ctx.fillStyle = "#070d14";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "rgba(0, 210, 255, 0.08)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 28) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 22) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Divider line between ECG & EDR
+      const splitY = canvas.height * 0.65;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+      ctx.beginPath();
+      ctx.moveTo(0, splitY);
+      ctx.lineTo(canvas.width, splitY);
+      ctx.stroke();
+
+      const step = canvas.width / ecgBuffer.length;
+
+      // Draw ECG (Top 65%)
+      const ecgColor = currentMode === "apnea" ? "#ff4d4f" : (currentMode === "leads_off" ? "#f59e0b" : "#00ff88");
+      ctx.strokeStyle = ecgColor;
+      ctx.lineWidth = 2.0;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = ecgColor;
+      ctx.beginPath();
+      for (let i = 0; i < ecgBuffer.length; i++) {
+        const x = i * step;
+        const y = (splitY / 2) - ecgBuffer[i] * 38;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Draw EDR (Bottom 35%)
+      const edrColor = currentMode === "apnea" ? "#ff4d4f" : "#00d2ff";
+      ctx.strokeStyle = edrColor;
+      ctx.lineWidth = 2.0;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = edrColor;
+      ctx.beginPath();
+      const edrMidY = splitY + (canvas.height - splitY) / 2;
+      for (let i = 0; i < edrBuffer.length; i++) {
+        const x = i * step;
+        const y = edrMidY - (edrBuffer[i] - 0.7) * 25;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Scope Labels
+      ctx.fillStyle = ecgColor;
+      ctx.font = "10px monospace";
+      ctx.fillText("CH1: LEAD II ECG", 8, 14);
+
+      ctx.fillStyle = edrColor;
+      ctx.fillText(currentMode === "apnea" ? "CH2: EDR [FLATLINE APNEA]" : "CH2: EDR RESPIRATION [NORMAL]", 8, splitY + 16);
+
+      requestAnimationFrame(renderScope);
+    }
+
+    renderScope();
+  </script>
+</body>
+</html>

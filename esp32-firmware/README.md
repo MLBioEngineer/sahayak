@@ -4,15 +4,22 @@ This guide accompanies **Phase 6 (Hardware Integration)** of the Sleep Apnea Det
 
 ---
 
+## ⚡ Tinkercad / Fritzing Simulation & Circuit Visualizer
+
+An interactive high-definition circuit simulation diagram is available in this folder:
+- **Interactive Visualizer**: Open [`tinkercad_hardware_simulation.html`](tinkercad_hardware_simulation.html) in any web browser to view the breadboard layout, color-coded jumper wiring, and Einthoven 3-lead placement.
+
+---
+
 ## 📌 Pinout & Connections
 
-| AD8232 ECG Sensor Pin | ESP32 Dev Board Pin | Description |
-| :--- | :--- | :--- |
-| **3.3V** | **3V3** | 3.3V Power Supply |
-| **GND** | **GND** | Ground |
-| **OUTPUT** | **GPIO 36 (VP / ADC1_CH0)** | Analog ECG signal |
-| **LO+** | **GPIO 22** | Leads-off detection (optional) |
-| **LO-** | **GPIO 23** | Leads-off detection (optional) |
+| AD8232 ECG Sensor Pin | ESP32 Dev Board Pin | Wire Color | Description |
+| :--- | :--- | :--- | :--- |
+| **3.3V** | **3V3** | 🔴 Red | 3.3V Regulated Power Supply |
+| **GND** | **GND** | ⚫ Black | System Ground Reference |
+| **OUTPUT** | **GPIO 36 (VP / ADC1_CH0)** | 🔵 Blue | Analog ECG Signal (0 - 3.3V) |
+| **LO+** | **GPIO 22** | 🟠 Orange | Leads-off detection (optional) |
+| **LO-** | **GPIO 23** | 🟢 Green | Leads-off detection (optional) |
 
 ---
 
