@@ -939,7 +939,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                       ? "⚠️ সংকেত বিচ্ছিন্ন (Leads Off)"
                       : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim))
                         ? "⚠️ EDR শ্বাসরোধ ফ্ল্যাটলাইন"
-                        : "🫁 + EDR Respiration")}
+                        : "🫁 EDR: স্বাভাবিক শ্বাস-প্রশ্বাস")}
                   </span>
                 )}
               </div>

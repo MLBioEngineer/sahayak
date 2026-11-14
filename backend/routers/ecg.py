@@ -113,7 +113,7 @@ def get_latest_stream():
         
         if is_leads_off:
             display_samples = [round(float(v), 3) for v in window]
-            prediction = predict_epoch(window)
+            prediction = predict_epoch(window, is_live_stream=True)
             edr_signal = [1.0] * len(window)
         else:
             # If raw ADC (e.g. 0-4095 with baseline ~2000), center and scale to clean biopotential range
@@ -125,8 +125,8 @@ def get_latest_stream():
             else:
                 display_samples = [round(float(v), 3) for v in window]
                 
-            prediction = predict_epoch(display_samples)
-            is_bh = bool(prediction.get("metrics", {}).get("is_breath_hold", False) or prediction.get("is_apnea", False))
+            prediction = predict_epoch(display_samples, is_live_stream=True)
+            is_bh = bool(prediction.get("metrics", {}).get("is_breath_hold", False))
             edr_signal = extract_edr(display_samples, is_breath_hold=is_bh)
             is_leads_off = bool(prediction.get("is_leads_off", False))
             
@@ -145,7 +145,7 @@ def get_latest_stream():
     default_bench = generate_benchmark_signal("normal")
     default_ecg = default_bench["ecg_signal"][:1000]
     default_edr = default_bench["edr_signal"][:1000]
-    prediction = predict_epoch(default_ecg)
+    prediction = predict_epoch(default_ecg, is_live_stream=True)
     
     return {
         "is_active": False,
