@@ -16,6 +16,8 @@
   - Real-time Stream: `POST /api/ecg/stream`
   - Chat endpoint: `POST /chat`
   - PDF Export: `POST /export-pdf`
+- **Hardware Telemetry (ESP32 + AD8232)**: [Hardware Setup & Wi-Fi Stabilization Guide](hardware/README.md)
+  - Dual-Core 100 Hz FreeRTOS sampling with modem sleep disabled & auto-reconnect
 
 ---
 

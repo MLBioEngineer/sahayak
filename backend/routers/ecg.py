@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import List, Optional
 import numpy as np
 import time
 from collections import deque
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from services.ecg_service import (
     predict_epoch,
     analyze_session,
@@ -12,6 +14,7 @@ from services.ecg_service import (
     check_is_leads_off,
 )
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 class EpochPredictRequest(BaseModel):
@@ -147,7 +150,8 @@ LAST_DEVICE_ID = "ESP32_NODE"
 STREAM_TIMEOUT_SECONDS = 3.5
 
 @router.post("/stream")
-def receive_hardware_stream(data: StreamChunkRequest):
+@limiter.exempt
+def receive_hardware_stream(request: Request, data: StreamChunkRequest):
     """
     Endpoint for ESP32 hardware streaming over Wi-Fi.
     Accepts real-time batches of ECG samples and buffers them in memory.
@@ -208,7 +212,8 @@ def receive_hardware_stream(data: StreamChunkRequest):
     }
 
 @router.get("/stream/latest")
-def get_latest_stream():
+@limiter.exempt
+def get_latest_stream(request: Request):
     """
     Endpoint for frontend to fetch latest buffered telemetry from ESP32.
     Includes active status, window samples, and live model prediction.
