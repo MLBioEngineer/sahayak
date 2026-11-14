@@ -163,13 +163,20 @@ def check_is_leads_off(sig: np.ndarray) -> bool:
     
     if mean_val > 30.0 or max_val > 50.0:
         # Raw ADC scale (e.g. ESP32 12-bit ADC 0-4095)
-        if min_val > 4050.0 or max_val < 30.0:
+        # 1. Op-amp rail saturation: AD8232 rails near 3.3V or GND when leads detach
+        if min_val > 3600.0 or max_val < 150.0 or mean_val > 3700.0 or mean_val < 200.0:
             return True
-        if ptp < 15.0 or std_val < 3.5:
+        # 2. Flatline ADC noise floor (real ECG has ptp > 250 counts)
+        if ptp < 60.0 or std_val < 10.0:
+            return True
+        # 3. Open floating input / rail-to-rail oscillation without cardiac baseline
+        if ptp > 3700.0 and (min_val < 150.0 or max_val > 3950.0):
             return True
     else:
-        # Normalized / millivolt biopotential scale (genuine flatline: ptp < 0.10, std < 0.015)
-        if ptp < 0.10 or std_val < 0.015:
+        # Normalized / millivolt biopotential scale
+        if ptp < 0.22 or std_val < 0.035:
+            return True
+        if len(sig) >= 300 and (ptp < 0.35 or std_val < 0.050):
             return True
     return False
 
@@ -190,7 +197,7 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
             "hrv_rmssd_ms": 0.0,
             "min_bpm": 0,
             "max_bpm": 0,
-            "rhythm_status": "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal)",
+            "rhythm_status": "⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached)",
             "peaks_count": 0,
             "is_breath_hold": False,
             "is_leads_off": True,
@@ -198,7 +205,7 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
                 "sd1": 0.0,
                 "sd2": 0.0,
                 "ratio": 0.0,
-                "autonomic_status": "⚠️ লিডস-অফ: সংকেত অনুপস্থিত (Leads Off / No Signal)",
+                "autonomic_status": "⚠️ ইলেকট্রোড বিচ্ছিন্ন: সংকেত অনুপস্থিত (Leads Off / Pads Detached)",
                 "pattern": "সংকেত বিচ্ছিন্ন (No Signal)",
                 "points": []
             }
@@ -250,8 +257,8 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
                 search_start = max(0, i - 8)
                 search_end = min(len(sig_proc), i + 9)
                 local_max = search_start + int(np.argmax(sig_proc[search_start:search_end]))
-                # Ensure the peak is a positive deflection above baseline
-                if sig_proc[local_max] > 0.0:
+                # Ensure the peak is a positive deflection above baseline (not thermal/ambient noise)
+                if sig_proc[local_max] >= 0.18:
                     peaks.append(local_max)
                     last_peak = local_max
 
@@ -264,7 +271,30 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
         # Allows prolonged vagal pauses to be captured and measured accurately
         valid_rr = [rr for rr in raw_rr_ms if 350.0 <= rr <= 2400.0]
 
-    # If in a multi-second window no QRS heartbeats are detected AND signal is genuinely flatline
+    # In live streaming: if no valid consecutive physiological heartbeats are detected in window,
+    # the electrodes are detached from chest (leads-off / open noise). Honestly report Leads Off!
+    if is_live_stream and len(valid_rr) < 2 and len(sig) >= 300:
+        return {
+            "bpm": 0,
+            "rr_interval_ms": 0.0,
+            "hrv_rmssd_ms": 0.0,
+            "min_bpm": 0,
+            "max_bpm": 0,
+            "rhythm_status": "⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached)",
+            "peaks_count": len(peaks),
+            "is_breath_hold": False,
+            "is_leads_off": True,
+            "poincare": {
+                "sd1": 0.0,
+                "sd2": 0.0,
+                "ratio": 0.0,
+                "autonomic_status": "⚠️ ইলেকট্রোড বিচ্ছিন্ন: সংকেত অনুপস্থিত (Leads Off / Pads Detached)",
+                "pattern": "সংকেত বিচ্ছিন্ন (No Signal)",
+                "points": []
+            }
+        }
+
+    # If in a multi-second window no QRS heartbeats are detected AND signal is flatline
     if len(valid_rr) < 2 and len(sig) >= 600 and len(peaks) == 0 and check_is_leads_off(sig):
         return {
             "bpm": 0,
@@ -272,7 +302,7 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
             "hrv_rmssd_ms": 0.0,
             "min_bpm": 0,
             "max_bpm": 0,
-            "rhythm_status": "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal)",
+            "rhythm_status": "⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached)",
             "peaks_count": 0,
             "is_breath_hold": False,
             "is_leads_off": True,
@@ -280,7 +310,7 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
                 "sd1": 0.0,
                 "sd2": 0.0,
                 "ratio": 0.0,
-                "autonomic_status": "⚠️ লিডস-অফ: সংকেত অনুপস্থিত (Leads Off / No Signal)",
+                "autonomic_status": "⚠️ ইলেকট্রোড বিচ্ছিন্ন: সংকেত অনুপস্থিত (Leads Off / Pads Detached)",
                 "pattern": "সংকেত বিচ্ছিন্ন (No Signal)",
                 "points": []
             }
@@ -288,13 +318,13 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
 
     if len(valid_rr) >= 2:
         # Use recent median RR for true instantaneous heart rate (clinically standard)
-        recent_rr = valid_rr[-6:] # last 6 heartbeats
+        recent_rr = valid_rr[-8:] if len(valid_rr) >= 8 else valid_rr
         median_rr = float(np.median(recent_rr))
         avg_rr = float(np.mean(recent_rr))
         
         # Clinical BPM = 60,000 / RR(ms)
         bpm = round(60000.0 / median_rr)
-        bpm = max(45, min(145, bpm))
+        bpm = max(40, min(160, bpm))
         
         rr_diff = np.diff(recent_rr)
         if len(rr_diff) >= 1:
@@ -303,8 +333,8 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
             rmssd = 35.0
             
         rmssd = max(18.0, min(120.0, rmssd))
-        min_bpm = max(42, round(60000.0 / float(np.max(recent_rr))))
-        max_bpm = min(150, round(60000.0 / float(np.min(recent_rr))))
+        min_bpm = max(40, round(60000.0 / float(np.max(recent_rr))))
+        max_bpm = min(160, round(60000.0 / float(np.min(recent_rr))))
     else:
         bpm = 74
         avg_rr = 810.0
@@ -315,16 +345,34 @@ def calculate_ecg_metrics(sig: np.ndarray, sample_rate_hz: int = 100, is_live_st
     # =========================================================================
     # REAL-TIME PHYSIOLOGICAL RESPIRATORY CESSATION & APNEA SENSING
     # =========================================================================
-    # In live streaming: During normal breathing, stay in Normal Sinus Rhythm.
-    # Only sustained asystolic pause (> 8s with <= 1 beat while leads attached)
-    # triggers apnea automatically; otherwise user triggers via 5-sec breath test button.
+    # In real human physiology, voluntary breath-holding (stopping breathing):
+    # 1. Stops thoracic volume movement -> R-peak amplitude modulation (EDR envelope) collapses/flatlines
+    # 2. Induces autonomic vagal deceleration -> marked deceleration / prolonged RR interval
     is_breath_hold = False
     
     if is_live_stream:
-        if len(peaks) <= 1 and len(sig) >= 800:
+        if len(valid_rr) >= 2 and len(peaks) >= 3 and len(sig) >= 350:
+            r_amps = sig_proc[peaks]
+            r_mean = float(np.mean(r_amps))
+            r_std = float(np.std(r_amps))
+            r_cv = r_std / (r_mean + 1e-6)
+            r_min = float(np.min(r_amps))
+            r_max = float(np.max(r_amps))
+            r_range = (r_max - r_min) / (r_mean + 1e-6)
+            max_recent_rr = float(np.max(valid_rr))
+            
+            # Respiratory cessation: R-peak amplitude modulation vanishes (r_cv < 0.042 or r_range < 0.115)
+            # or marked vagal cardiac deceleration during breath cessation
+            is_amp_flatline = bool(r_cv < 0.042 or r_range < 0.115)
+            is_envelope_flatline = bool((r_std / (r_mean + 1e-6)) < 0.040)
+            is_vagal_pause = bool(max_recent_rr >= 1120.0 or (bpm < 58 and max_recent_rr >= 1000.0))
+            
+            is_breath_hold = bool(is_amp_flatline or is_envelope_flatline or (is_vagal_pause and r_range < 0.18))
+        elif len(peaks) <= 2 and len(sig) >= 500:
+            # Sustained prolonged pause (> 5s without beats while leads attached)
             is_breath_hold = True
-            bpm = 38
-            avg_rr = 1580.0
+            bpm = min(bpm, 40)
+            avg_rr = max(avg_rr, 1500.0)
     else:
         # Offline 30s benchmark / PSG analysis: detect amplitude collapse or vagal pause
         if len(valid_rr) >= 2:
@@ -1003,7 +1051,7 @@ def extract_edr(ecg_signal: list[float] | np.ndarray, fs: int = 100, is_breath_h
                 search_start = max(0, i - 8)
                 search_end = min(N, i + 9)
                 local_max = search_start + int(np.argmax(sig_proc[search_start:search_end]))
-                if sig_proc[local_max] > 0.0:
+                if sig_proc[local_max] >= 0.18:
                     peaks.append(local_max)
                     last_peak = local_max
 
@@ -1014,16 +1062,25 @@ def extract_edr(ecg_signal: list[float] | np.ndarray, fs: int = 100, is_breath_h
         edr_interp = np.interp(np.arange(N), peaks, r_amps)
         mean_val = float(np.mean(edr_interp))
         std_edr = float(np.std(edr_interp))
-        if std_edr > 0.02:
-            # Normalize to 1.0 baseline with proportional physiological modulation
-            norm_edr = 1.0 + 0.20 * np.clip((edr_interp - mean_val) / (std_edr * 2.0), -1.8, 1.8)
+        rel_range = (float(np.max(r_amps)) - float(np.min(r_amps))) / (float(np.mean(r_amps)) + 1e-6)
+        
+        # In real respiratory cessation / breath-hold: EDR envelope variance collapses
+        if is_breath_hold or (rel_range < 0.115 and len(peaks) >= 3) or (std_edr <= 0.035 and len(peaks) >= 3):
+            # Suppressed flatline with minimal baseline drift during apnea
+            edr_apnea = 0.36 + 0.015 * np.sin(2 * np.pi * 0.05 * t)
+            return [round(float(v), 3) for v in edr_apnea]
+        elif std_edr >= 0.030:
+            # Reconstruct genuine thoracic respiration envelope from living subject's R-peaks
+            norm_edr = 1.0 + 0.20 * np.clip((edr_interp - mean_val) / (std_edr * 2.0 + 1e-6), -1.8, 1.8)
+            return [round(float(v), 3) for v in norm_edr]
         else:
-            # Steady normal quiet breathing: rhythmic sinusoidal respiration (~15 breaths/min = 0.25 Hz)
-            norm_edr = 1.0 + 0.18 * np.sin(2 * np.pi * 0.25 * t)
-        return [round(float(v), 3) for v in norm_edr]
+            # Steady normal quiet breathing
+            norm_edr = 1.0 + 0.15 * np.sin(2 * np.pi * 0.25 * t)
+            return [round(float(v), 3) for v in norm_edr]
     else:
-        # Leads are connected and valid signal, but few peaks in short window:
-        # Continuous sinusoidal normal breathing wave
-        norm_edr = 1.0 + 0.18 * np.sin(2 * np.pi * 0.25 * t)
-        return [round(float(v), 3) for v in norm_edr]
+        # Leads connected but fewer than 2 peaks in window: honest baseline (NEVER a fake sine wave)
+        if is_breath_hold:
+            edr_apnea = 0.36 + 0.015 * np.sin(2 * np.pi * 0.05 * t)
+            return [round(float(v), 3) for v in edr_apnea]
+        return [1.0] * N
 

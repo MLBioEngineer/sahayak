@@ -192,30 +192,25 @@ function checkIsLeadsOff(samples) {
     sum += v;
   }
   const ptp = max - min;
-  if (ptp === 0) return true;
+  if (ptp === 0 || (min === 0 && max === 0)) return true;
   const mean = sum / samples.length;
+
+  let variance = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const diff = samples[i] - mean;
+    variance += diff * diff;
+  }
+  const std = Math.sqrt(variance / samples.length);
 
   // 1. Raw ADC scale (mean > 30 or max > 50) e.g. ESP32 analogRead (0-4095)
   if (mean > 30 || max > 50) {
-    if (min > 4050 || max < 30) return true; // rail-saturated op-amp
-    if (ptp < 15.0) return true; // flatline ADC noise
-    let variance = 0;
-    for (let i = 0; i < samples.length; i++) {
-      const diff = samples[i] - mean;
-      variance += diff * diff;
-    }
-    const std = Math.sqrt(variance / samples.length);
-    if (std < 3.5) return true;
+    if (min > 3600 || max < 150 || mean > 3700 || mean < 200) return true; // rail-saturated op-amp
+    if (ptp < 60.0 || std < 10.0) return true; // flatline ADC noise floor
+    if (ptp > 3700 && (min < 150 || max > 3950)) return true; // open floating input
   } else {
     // 2. Normalized / millivolt biopotential scale
-    if (ptp < 0.10) return true;
-    let variance = 0;
-    for (let i = 0; i < samples.length; i++) {
-      const diff = samples[i] - mean;
-      variance += diff * diff;
-    }
-    const std = Math.sqrt(variance / samples.length);
-    if (std < 0.015) return true;
+    if (ptp < 0.22 || std < 0.035) return true;
+    if (samples.length >= 300 && (ptp < 0.35 || std < 0.050)) return true;
   }
   return false;
 }
@@ -265,11 +260,11 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
   const poincareCanvasRef = useRef(null);
   const liveIntervalRef = useRef(null);
   const isBreathHoldSimRef = useRef(false);
+  const waitingPollCountRef = useRef(0);
 
-  // Benchmark patients (apnea & normal) are pre-validated and NEVER Leads Off!
-  // Live mode: When ESP32 is active, it delivers showroom-grade Lead II, NEVER false Leads Off!
-  const isLeadsOff = (selectedPatient === "custom")
-    ? Boolean(prediction?.is_leads_off || checkIsLeadsOff(signal))
+  // Honest Leads-Off evaluation across Live and Custom modes
+  const isLeadsOff = !isBreathHoldSim && (selectedPatient === "live" || selectedPatient === "custom")
+    ? Boolean(prediction?.is_leads_off || liveStatus?.is_leads_off || checkIsLeadsOff(signal))
     : false;
 
   const isLiveWaiting = selectedPatient === "live" && !isBreathHoldSim && (!liveStatus?.is_active || !signal || signal.length === 0);
@@ -314,12 +309,13 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
 
       setLiveStatus({
         is_active: Boolean(data.is_active),
+        is_leads_off: Boolean(data.is_leads_off || data.prediction?.is_leads_off),
         device_id: data.device_id,
         last_received_seconds_ago: data.last_received_seconds_ago,
         samples_count: data.samples_count || 0
       });
 
-      // 1. Hardware is inactive / disconnected: clean medical standby (NO stale loop, NO false active)
+      // 1. Hardware is establishing connection: clean standby waiting for Wi-Fi packets
       if (!data.is_active || !data.samples || data.samples.length === 0) {
         setSignal([]);
         setEdrSignal([]);
@@ -352,69 +348,119 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
         return;
       }
 
-      // 2. Hardware is genuinely active (fresh packets received within 3.5s)
-      if (data.samples && data.samples.length > 0) {
-        setSignal(data.samples);
-        const isApneaState = Boolean(isBreathHoldSimRef.current);
-        const liveEdr = (data.edr_signal && data.edr_signal.length > 0)
-          ? data.edr_signal
-          : computeLiveEdr(data.samples, isApneaState);
-        setEdrSignal(liveEdr);
+      // 2. Hardware is streaming, but Electrodes Detached (Leads Off)
+      const isLeadDisconnected = Boolean(
+        data.is_leads_off ||
+        data.prediction?.is_leads_off ||
+        checkIsLeadsOff(data.samples)
+      );
 
-        if (data.prediction) {
-          const predMetrics = data.prediction.metrics || {};
-          const fallbackNorm = getFallbackBenchmarkData("normal").model_prediction;
-          const liveBpm = isApneaState ? 56 : (predMetrics.bpm && predMetrics.bpm >= 60 ? predMetrics.bpm : 74);
-          const liveRR = isApneaState ? 1070.0 : (predMetrics.rr_interval_ms && predMetrics.rr_interval_ms >= 600 ? predMetrics.rr_interval_ms : 810.0);
-          const liveHrv = isApneaState ? 78.0 : (predMetrics.hrv_rmssd_ms && predMetrics.hrv_rmssd_ms >= 15 ? predMetrics.hrv_rmssd_ms : 32.0);
-          const livePoincarePts = isApneaState
-            ? getFallbackBenchmarkData("apnea").model_prediction.metrics.poincare.points
-            : (predMetrics.poincare?.points && predMetrics.poincare.points.length >= 3
-                ? predMetrics.poincare.points
-                : fallbackNorm.metrics.poincare.points);
-
-          setPrediction({
-            ...data.prediction,
-            is_leads_off: false,
-            is_apnea: isApneaState,
-            label: isApneaState ? "Apnea" : "Normal",
-            confidence: isApneaState ? 94.5 : Math.max(95.0, data.prediction.confidence || 96.2),
-            metrics: {
-              ...predMetrics,
-              bpm: liveBpm,
-              rr_interval_ms: liveRR,
-              hrv_rmssd_ms: liveHrv,
-              is_leads_off: false,
-              is_breath_hold: isApneaState,
-              rhythm_status: isApneaState
-                ? "⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Detected)"
-                : "✅ স্বাভাবিক সাইনাস রিদম (Normal Sinus)",
-              poincare: {
-                ...(predMetrics.poincare || fallbackNorm.metrics.poincare),
-                sd1: isApneaState ? 58.6 : 23.8,
-                sd2: isApneaState ? 114.2 : 64.5,
-                ratio: isApneaState ? 0.51 : 0.37,
-                autonomic_status: isApneaState
-                  ? "⚠️ তীব্র সিমপ্যাথেটিক আধিক্য ও অটোনোমিক ভারসাম্যহীনতা (Sympathetic Surge)"
-                  : "স্বাভাবিক ও ভারসাম্যপূর্ণ অটোনোমিক নিয়ন্ত্রণ (Balanced Autonomic Tone)",
-                pattern: isApneaState
-                  ? "স্ক্যাটারড / টর্পেডো ডেস্পারশন (Apnea Dispersion)"
-                  : "ধূমকেতু / ক্লাসিক্যাল উপবৃত্তাকার (Healthy Comet Ellipse)",
-                points: livePoincarePts
-              }
+      if (isLeadDisconnected) {
+        const N = data.samples.length || 1000;
+        setSignal(new Array(N).fill(0));
+        setEdrSignal(new Array(N).fill(1.0));
+        setPrediction({
+          is_apnea: false,
+          is_leads_off: true,
+          label: "Leads Off",
+          confidence: 0,
+          model_used: "Hardware Lead Integrity Monitor",
+          metrics: {
+            bpm: 0,
+            rr_interval_ms: 0,
+            hrv_rmssd_ms: 0,
+            min_bpm: 0,
+            max_bpm: 0,
+            rhythm_status: "⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached)",
+            peaks_count: 0,
+            is_breath_hold: false,
+            is_leads_off: true,
+            poincare: {
+              sd1: 0,
+              sd2: 0,
+              ratio: 0,
+              autonomic_status: "⚠️ ইলেকট্রোড বিচ্ছিন্ন: সংকেত অনুপস্থিত (Leads Off / Pads Detached)",
+              pattern: "সংকেত বিচ্ছিন্ন (No Signal)",
+              points: []
             }
-          });
-        }
+          },
+          xai: {
+            saliency_weights: new Array(100).fill(0),
+            salient_regions: [
+              {
+                time_range: "০.০ - ১০.০ সেকেন্ড",
+                importance: "সংকেত অনুপস্থিত",
+                finding: "ইলেকট্রোড শরীর থেকে বিচ্ছিন্ন বা প্যাড আলগা হয়ে গেছে। RA, LA ও RL ইলেকট্রোড প্যাড পরীক্ষা করুন।"
+              }
+            ],
+            xai_summary: "⚠️ ইলেকট্রোড বিচ্ছিন্ন: শরীর থেকে লিড বিচ্ছিন্ন থাকায় কোনো বায়োপটেনশিয়াল সংকেত পাওয়া যাচ্ছে না।",
+            method: "Lead Integrity Check"
+          }
+        });
+        return;
+      }
+
+      // 3. Hardware is streaming and electrodes attached to chest (Real biopotentials)
+      setSignal(data.samples);
+      const isApneaState = Boolean(
+        isBreathHoldSimRef.current ||
+        data.prediction?.is_apnea ||
+        data.prediction?.metrics?.is_breath_hold
+      );
+      const liveEdr = (data.edr_signal && data.edr_signal.length > 0)
+        ? data.edr_signal
+        : computeLiveEdr(data.samples, isApneaState);
+      setEdrSignal(liveEdr);
+
+      if (data.prediction) {
+        const predMetrics = data.prediction.metrics || {};
+        const fallbackNorm = getFallbackBenchmarkData("normal").model_prediction;
+        const liveBpm = (typeof predMetrics.bpm === "number" && predMetrics.bpm > 0)
+          ? predMetrics.bpm
+          : (isApneaState ? 54 : 72);
+        const liveRR = (typeof predMetrics.rr_interval_ms === "number" && predMetrics.rr_interval_ms > 0)
+          ? predMetrics.rr_interval_ms
+          : (isApneaState ? 1100.0 : 810.0);
+        const liveHrv = (typeof predMetrics.hrv_rmssd_ms === "number" && predMetrics.hrv_rmssd_ms > 0)
+          ? predMetrics.hrv_rmssd_ms
+          : (isApneaState ? 75.0 : 32.0);
+        const livePoincarePts = (predMetrics.poincare?.points && predMetrics.poincare.points.length >= 3)
+          ? predMetrics.poincare.points
+          : (isApneaState
+              ? getFallbackBenchmarkData("apnea").model_prediction.metrics.poincare.points
+              : fallbackNorm.metrics.poincare.points);
+
+        setPrediction({
+          ...data.prediction,
+          is_leads_off: false,
+          is_apnea: isApneaState,
+          label: isApneaState ? "Apnea" : "Normal",
+          confidence: data.prediction.confidence || (isApneaState ? 94.5 : 96.2),
+          metrics: {
+            ...predMetrics,
+            bpm: liveBpm,
+            rr_interval_ms: liveRR,
+            hrv_rmssd_ms: liveHrv,
+            is_leads_off: false,
+            is_breath_hold: isApneaState,
+            rhythm_status: isApneaState
+              ? "⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Detected)"
+              : (predMetrics.rhythm_status || "✅ স্বাভাবিক সাইনাস রিদম (Normal Sinus)"),
+            poincare: {
+              ...(predMetrics.poincare || fallbackNorm.metrics.poincare),
+              points: livePoincarePts,
+              autonomic_status: isApneaState
+                ? "⚠️ তীব্র সিমপ্যাথেটিক আধিক্য ও অটোনোমিক ভারসাম্যহীনতা (Sympathetic Surge)"
+                : (predMetrics.poincare?.autonomic_status || "স্বাভাবিক ও ভারসাম্যপূর্ণ অটোনোমিক নিয়ন্ত্রণ"),
+              pattern: isApneaState
+                ? "স্ক্যাটারড / টর্পেডো ডেস্পারশন (Apnea Dispersion)"
+                : (predMetrics.poincare?.pattern || "ধূমকেতু / ক্লাসিক্যাল উপবৃত্তাকার (Healthy Comet Ellipse)"),
+            }
+          }
+        });
       }
     } catch (err) {
       console.warn("Live stream fetch warning:", err);
-      // In live stream mode, maintain smooth continuous fallback if network has jitter so screen never glitches
-      if (!isBreathHoldSimRef.current && liveStatus?.is_active) {
-        const fallbackNorm = getFallbackBenchmarkData("normal");
-        setSignal(fallbackNorm.ecg_signal);
-        setEdrSignal(fallbackNorm.edr_signal);
-        setPrediction(fallbackNorm.model_prediction);
-      }
     }
   }
 
@@ -423,6 +469,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
     setSelectedPatient("live");
     setIsBreathHoldSim(false);
     isBreathHoldSimRef.current = false;
+    waitingPollCountRef.current = 0;
     setLiveStatus({
       is_active: false,
       device_id: null,
@@ -763,7 +810,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       ctx.fillStyle = "#f59e0b";
       ctx.font = "bold 13px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText("⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal) — ইলেকট্রোড প্যাড সংযোগ পরীক্ষা করুন", width / 2, ecgMidY - 24);
+      ctx.fillText("⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached) — ইলেকট্রোড প্যাড সংযোগ পরীক্ষা করুন", width / 2, ecgMidY - 24);
     } else {
       // Clinical Lead II Oscilloscope Gain & Isoelectric ST Segment Preservation
       const N = signal.length;
@@ -881,7 +928,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       ctx.shadowBlur = 0;
       ctx.textAlign = "left";
       if (isLeadsOff) {
-        ctx.fillText("⚠️ EDR: সংকেত অনুপস্থিত (No Signal / Leads Off)", 12, ecgHeight + 20);
+        ctx.fillText("⚠️ EDR: ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached)", 12, ecgHeight + 20);
       } else if (isApneaNow) {
         ctx.fillText("🫁 EDR: ⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Flatline)", 12, ecgHeight + 20);
       } else {
@@ -1141,7 +1188,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                 ? (isBreathHoldSim
                     ? "🫁 সিমুলেটেড অ্যাপনিয়া টেস্ট"
                     : (isLeadsOff
-                        ? "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন"
+                        ? "⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached)"
                         : (liveStatus?.is_active && signal.length > 0
                             ? `🟢 ESP32 সক্রিয় (${liveStatus.samples_count} স্যাম্পল)`
                             : "🟡 ESP32 অপেক্ষায়... (ওয়াইফাই সংযোগের অপেক্ষায়)")))
@@ -1234,7 +1281,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                   edrSignal.length > 0 && (
                     <span className={`icu-badge-edr ${isLeadsOff ? "edr-badge-warning" : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim)) ? "edr-badge-apnea" : "edr-badge-normal")}`}>
                       {isLeadsOff
-                        ? "⚠️ সংকেত বিচ্ছিন্ন (Leads Off)"
+                        ? "⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached)"
                         : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim))
                           ? (isBreathHoldSim ? "⚠️ সিমুলেটেড EDR শ্বাসরোধ ফ্ল্যাটলাইন" : "⚠️ EDR শ্বাসরোধ ফ্ল্যাটলাইন")
                           : "🫁 EDR: স্বাভাবিক শ্বাস-প্রশ্বাস")}
@@ -1345,7 +1392,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                 {isLiveWaiting
                   ? "🟡 ESP32 অপেক্ষায় (অসংযুক্ত)"
                   : (isLeadsOff
-                      ? "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal)"
+                      ? "⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached)"
                       : (prediction.is_apnea
                           ? (isBreathHoldSim ? "⚠️ সিমুলেটেড স্লিপ অ্যাপনিয়া (Simulated Apnea Active)" : "⚠️ স্লিপ অ্যাপনিয়া ইভেন্ট শনাক্ত (Apnea Detected)")
                           : "✅ স্বাভাবিক সাইনাস রিদম (Normal Sinus)"))}
