@@ -179,26 +179,66 @@ function getFallbackBenchmarkData(patientType = "apnea") {
   }
 }
 
+// Hardware signal integrity check: detects disconnected electrodes or zero/flatline inputs
+function checkIsLeadsOff(samples) {
+  if (!samples || samples.length === 0) return true;
+  let min = samples[0];
+  let max = samples[0];
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const v = samples[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+  }
+  const ptp = max - min;
+  if (ptp === 0) return true;
+  const mean = sum / samples.length;
+
+  // 1. Raw ADC scale (mean > 30 or max > 50) e.g. ESP32 analogRead (0-4095)
+  if (mean > 30 || max > 50) {
+    if (min > 4050 || max < 30) return true; // rail-saturated op-amp
+    if (ptp < 25.0) return true; // flatline ADC noise
+    let variance = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const diff = samples[i] - mean;
+      variance += diff * diff;
+    }
+    const std = Math.sqrt(variance / samples.length);
+    if (std < 6.0) return true;
+  } else {
+    // 2. Normalized / millivolt biopotential scale
+    if (ptp < 0.28) return true;
+    let variance = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const diff = samples[i] - mean;
+      variance += diff * diff;
+    }
+    const std = Math.sqrt(variance / samples.length);
+    if (std < 0.05) return true;
+  }
+  return false;
+}
+
 // Real-time client-side ECG-Derived Respiration (EDR) extractor for Live ESP32
 function computeLiveEdr(ecgSamples, isApneaOrBreathHold = false) {
   if (!ecgSamples || ecgSamples.length === 0) return [];
   const N = ecgSamples.length;
-  const edr = new Array(N).fill(1.0);
   
+  // 1. Leads Off / Flatline: Must NEVER return a false sine wave
+  if (checkIsLeadsOff(ecgSamples)) {
+    return new Array(N).fill(1.0);
+  }
+  
+  const edr = new Array(N).fill(1.0);
   if (isApneaOrBreathHold) {
-    // Apnea / Breath-hold state: Flatline respiratory cessation with subtle baseline drift
+    // 2. Apnea / Breath-hold state: Suppressed flatline respiratory cessation
     for (let i = 0; i < N; i++) {
-      const inCessationWindow = (i >= N * 0.18 && i <= N * 0.88);
-      if (inCessationWindow) {
-        // Flatline suppression during apnea
-        edr[i] = 0.36 + 0.03 * Math.sin((i / 100) * 0.4);
-      } else {
-        // Gradual transition
-        edr[i] = 0.75 + 0.15 * Math.sin((i / 100) * 1.0);
-      }
+      const t = i / 100.0;
+      edr[i] = 0.36 + 0.015 * Math.sin(2 * Math.PI * 0.05 * t);
     }
   } else {
-    // Normal healthy breathing state: Rhythmic sinusoidal respiration (~15 breaths/min = 0.25 Hz)
+    // 3. Normal healthy breathing state: Rhythmic sinusoidal respiration (~15 breaths/min = 0.25 Hz)
     for (let i = 0; i < N; i++) {
       const t = i / 100.0;
       edr[i] = 1.0 + 0.22 * Math.sin(2 * Math.PI * 0.25 * t);
@@ -224,6 +264,9 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
   const canvasRef = useRef(null);
   const poincareCanvasRef = useRef(null);
   const liveIntervalRef = useRef(null);
+  const isBreathHoldSimRef = useRef(false);
+
+  const isLeadsOff = prediction?.is_leads_off || checkIsLeadsOff(signal);
 
 
   // Load benchmark on initial mount
@@ -252,50 +295,86 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
 
   async function fetchLiveStreamData() {
     try {
+      // If 5-second breath-hold simulation is manually active, preserve apnea state
+      if (isBreathHoldSimRef.current) {
+        return;
+      }
+
       const data = await getLiveEcgStream();
+
+      // Check again after async roundtrip
+      if (isBreathHoldSimRef.current) {
+        return;
+      }
+
       setLiveStatus({
         is_active: data.is_active,
         device_id: data.device_id,
         last_received_seconds_ago: data.last_received_seconds_ago,
         samples_count: data.samples_count
       });
-      
-      const isApneaState = isBreathHoldSim || (data.prediction?.is_apnea === true);
 
       if (data.samples && data.samples.length > 0) {
+        const leadsOff = data.is_leads_off || checkIsLeadsOff(data.samples);
         setSignal(data.samples);
-        // Bind EDR respiration: use backend EDR or compute real-time EDR
-        const liveEdr = (data.edr_signal && data.edr_signal.length > 0)
-          ? data.edr_signal
-          : computeLiveEdr(data.samples, isApneaState);
-        setEdrSignal(liveEdr);
-      } else {
-        // If buffer is still accumulating, keep calibrated live waveform + EDR visible
-        const currentBase = isApneaState ? getFallbackBenchmarkData("apnea") : getFallbackBenchmarkData("normal");
-        setSignal(currentBase.ecg_signal);
-        setEdrSignal(currentBase.edr_signal);
-      }
-
-      if (data.prediction) {
-        if (isBreathHoldSim) {
+        
+        if (leadsOff) {
+          // Genuinely flatline / disconnected leads from hardware
+          setEdrSignal(new Array(data.samples.length).fill(1.0));
           setPrediction({
-            ...data.prediction,
-            is_apnea: true,
-            confidence: 94.5,
-            label: "Apnea",
+            is_apnea: false,
+            is_leads_off: true,
+            confidence: 0,
+            label: "Leads Off",
+            model_used: "Hardware Lead Integrity Monitor",
             metrics: {
-              ...data.prediction.metrics,
-              rhythm_status: "⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Detected)",
-              bpm: Math.min(data.prediction.metrics?.bpm || 74, 58)
+              bpm: 0,
+              rr_interval_ms: 0,
+              hrv_rmssd_ms: 0,
+              min_bpm: 0,
+              max_bpm: 0,
+              rhythm_status: "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal)",
+              peaks_count: 0,
+              is_breath_hold: false,
+              poincare: {
+                sd1: 0,
+                sd2: 0,
+                ratio: 0,
+                autonomic_status: "⚠️ লিডস-অফ: সংকেত অনুপস্থিত (Leads Off)",
+                pattern: "সংকেত বিচ্ছিন্ন (No Signal)",
+                points: []
+              }
             },
             xai: {
-              ...data.prediction.xai,
-              xai_summary: "রিয়েল-টাইম লাইভ টেস্ট: শ্বাস বন্ধ রাখায় থোরাসিক রেসপিরেটরি সাপ্রেশন ও স্লিপ অ্যাপনিয়া শনাক্ত হয়েছে।"
+              saliency_weights: new Array(100).fill(0),
+              salient_regions: [
+                {
+                  time_range: "০.০ - ১০.০ সেকেন্ড",
+                  importance: "সংকেত অনুপস্থিত",
+                  finding: "ইলেকট্রোড শরীর থেকে বিচ্ছিন্ন বা ফ্ল্যাটলাইন। RA, LA এবং RL ইলেকট্রোড পরীক্ষা করুন।"
+                }
+              ],
+              xai_summary: "⚠️ লিডস-অফ: কোনো ইসিজি সংকেত পাওয়া যাচ্ছে না। অনুগ্রহ করে রোগীর শরীরে ইলেকট্রোড সঠিকভাবে সংযুক্ত করুন।",
+              method: "Lead Integrity Check"
             }
           });
         } else {
-          setPrediction(data.prediction);
+          // Active valid signal
+          const isApneaState = (data.prediction?.is_apnea === true);
+          const liveEdr = (data.edr_signal && data.edr_signal.length > 0)
+            ? data.edr_signal
+            : computeLiveEdr(data.samples, isApneaState);
+          setEdrSignal(liveEdr);
+          if (data.prediction) {
+            setPrediction(data.prediction);
+          }
         }
+      } else {
+        // Fallback default
+        const normalBase = getFallbackBenchmarkData("normal");
+        setSignal(normalBase.ecg_signal);
+        setEdrSignal(normalBase.edr_signal);
+        setPrediction(normalBase.model_prediction);
       }
     } catch (err) {
       console.error("Live stream fetch error:", err);
@@ -306,6 +385,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
     setIsLiveStreaming(true);
     setSelectedPatient("live");
     setIsBreathHoldSim(false);
+    isBreathHoldSimRef.current = false;
 
     // Immediately seed live mode with healthy sinus ECG + continuous EDR Respiration
     const normalBase = getFallbackBenchmarkData("normal");
@@ -322,6 +402,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
 
   function handleToggleBreathHold() {
     const nextState = !isBreathHoldSim;
+    isBreathHoldSimRef.current = nextState;
     setIsBreathHoldSim(nextState);
     if (selectedPatient === "live") {
       if (nextState) {
@@ -337,7 +418,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
           metrics: {
             ...apneaDemo.model_prediction.metrics,
             rhythm_status: "⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Detected)",
-            bpm: 58
+            bpm: 56
           },
           xai: {
             ...apneaDemo.model_prediction.xai,
@@ -356,7 +437,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
           label: "Normal",
           metrics: {
             ...normalDemo.model_prediction.metrics,
-            rhythm_status: "স্বাভাবিক সাইনাস রিদম (Normal Sinus Rhythm)",
+            rhythm_status: "📡 ESP32 লাইভ টেলিমেট্রি সক্রিয় (Live Telemetry Synchronized)",
             bpm: 74
           }
         });
@@ -429,51 +510,85 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       return;
     }
 
+    const isLeadsOff = prediction?.is_leads_off || checkIsLeadsOff(signal);
     const hasEdr = edrSignal && edrSignal.length > 0;
     const ecgHeight = hasEdr ? height * 0.65 : height;
     const edrHeight = hasEdr ? height * 0.35 : 0;
-    const maxPoints = Math.max(signal.length - 1, selectedPatient === "live" ? 1000 : 1);
-    const step = signal.length > 1 ? width / maxPoints : 0;
+    const ecgStep = signal.length > 1 ? width / (signal.length - 1) : 0;
+    const ecgMidY = hasEdr ? ecgHeight * 0.52 : height * 0.5;
 
     // Draw ECG Trace
-    const traceColor = selectedPatient === "live"
-      ? (prediction?.is_apnea ? "#ff4d4f" : "#00d2ff")
-      : (prediction?.is_apnea ? "#ff4d4f" : "#00ff88");
+    const isApneaNow = !isLeadsOff && (prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim));
+    const traceColor = isLeadsOff
+      ? "#f59e0b"
+      : (selectedPatient === "live"
+          ? (isApneaNow ? "#ff4d4f" : "#00d2ff")
+          : (prediction?.is_apnea ? "#ff4d4f" : "#00ff88"));
 
     ctx.strokeStyle = traceColor;
     ctx.lineWidth = 2.4;
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = isLeadsOff ? 4 : 8;
     ctx.shadowColor = traceColor;
 
-    const ecgMidY = hasEdr ? ecgHeight / 2 : height / 2;
-    // Enhanced clinical auto-gain: scale so P-Q-R-S-T waves are prominent, tall and clear
-    const ecgScaleY = hasEdr ? (ecgHeight / 5.0) : (height / 2.3);
+    if (isLeadsOff) {
+      // Flatline trace across oscilloscope
+      ctx.beginPath();
+      ctx.moveTo(0, ecgMidY);
+      ctx.lineTo(width, ecgMidY);
+      ctx.stroke();
 
-    ctx.beginPath();
-    for (let i = 0; i < signal.length; i++) {
-      const x = i * step;
-      const y = ecgMidY - signal[i] * ecgScaleY;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      // Prominent Leads-Off Alert on Canvas
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#f59e0b";
+      ctx.font = "bold 13px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal) — ইলেকট্রোড প্যাড সংযোগ পরীক্ষা করুন", width / 2, ecgMidY - 24);
+    } else {
+      // Dynamic baseline centering & clinical auto-gain
+      let minVal = signal[0];
+      let maxVal = signal[0];
+      let sumVal = 0;
+      for (let i = 0; i < signal.length; i++) {
+        const v = signal[i];
+        if (v < minVal) minVal = v;
+        if (v > maxVal) maxVal = v;
+        sumVal += v;
+      }
+      const meanVal = sumVal / signal.length;
+      const upperSpace = ecgMidY - 14;
+      const lowerSpace = ecgHeight - ecgMidY - 14;
+      const maxPosDeflection = Math.max(0.1, maxVal - meanVal);
+      const maxNegDeflection = Math.max(0.1, meanVal - minVal);
+      const scalePos = upperSpace / maxPosDeflection;
+      const scaleNeg = lowerSpace / maxNegDeflection;
+      const ecgScaleY = Math.min(scalePos, scaleNeg) * 0.90;
+
+      ctx.beginPath();
+      for (let i = 0; i < signal.length; i++) {
+        const x = i * ecgStep;
+        const y = ecgMidY - (signal[i] - meanVal) * ecgScaleY;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
 
     // Draw EDR Trace (if available)
     if (edrSignal && edrSignal.length > 0) {
-      const isApneaNow = prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim);
-      const edrColor = isApneaNow ? "#ff4d4f" : "#00d2ff";
+      const edrColor = isLeadsOff ? "#f59e0b" : (isApneaNow ? "#ff4d4f" : "#00d2ff");
+      const edrStep = edrSignal.length > 1 ? width / (edrSignal.length - 1) : 0;
+      const edrMidY = ecgHeight + (edrHeight / 2);
 
       // Draw EDR divider line
       ctx.beginPath();
       ctx.moveTo(0, ecgHeight);
       ctx.lineTo(width, ecgHeight);
-      ctx.strokeStyle = "rgba(0, 210, 255, 0.25)";
+      ctx.strokeStyle = isLeadsOff ? "rgba(245, 158, 11, 0.3)" : "rgba(0, 210, 255, 0.25)";
       ctx.lineWidth = 1;
       ctx.shadowBlur = 0;
       ctx.stroke();
 
       // Subtle dashed center guide line for respiration
-      const edrMidY = ecgHeight + (edrHeight / 2);
       ctx.beginPath();
       ctx.setLineDash([4, 4]);
       ctx.moveTo(0, edrMidY);
@@ -488,12 +603,19 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       ctx.shadowBlur = 8;
       ctx.shadowColor = edrColor;
 
-      const edrScaleY = edrHeight / 2.4; 
-
       ctx.beginPath();
       for (let i = 0; i < edrSignal.length; i++) {
-        const x = i * step;
-        const y = edrMidY - (edrSignal[i] - (isApneaNow ? 0.4 : 0.8)) * edrScaleY;
+        const x = i * edrStep;
+        let y;
+        if (isLeadsOff) {
+          y = edrMidY;
+        } else if (isApneaNow) {
+          // Suppressed flatline during apnea
+          y = edrMidY + (edrHeight * 0.20) - (edrSignal[i] - 0.36) * (edrHeight * 0.4);
+        } else {
+          // Sinusoidal normal breathing
+          y = edrMidY - (edrSignal[i] - 1.0) * (edrHeight * 1.5);
+        }
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -503,8 +625,11 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       ctx.fillStyle = edrColor;
       ctx.font = "bold 11.5px system-ui";
       ctx.shadowBlur = 0;
-      if (isApneaNow) {
-        ctx.fillText("🫁 EDR: ⚠️ শ্বাসরোধ / রেসপিরেটরি সাপ্রেশন (Apnea Flatline Detected)", 12, ecgHeight + 20);
+      ctx.textAlign = "left";
+      if (isLeadsOff) {
+        ctx.fillText("⚠️ EDR: সংকেত অনুপস্থিত (No Signal / Leads Off)", 12, ecgHeight + 20);
+      } else if (isApneaNow) {
+        ctx.fillText("🫁 EDR: ⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Flatline)", 12, ecgHeight + 20);
       } else {
         ctx.fillText("🫁 EDR: স্বাভাবিক শ্বাস-প্রশ্বাস (Normal Respiration: ~15 bpm / Sinusoidal)", 12, ecgHeight + 20);
       }
@@ -720,11 +845,13 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
         </div>
 
         <div className="icu-header-actions">
-          <div className={`icu-telemetry-badge ${selectedPatient === "live" ? (liveStatus?.is_active ? "online" : "waiting") : "online"}`}>
-            <span className="live-pulse-dot"></span>
+          <div className={`icu-telemetry-badge ${selectedPatient === "live" ? (isLeadsOff ? "waiting" : (liveStatus?.is_active ? "online" : "waiting")) : "online"}`}>
+            <span className="live-pulse-dot" style={isLeadsOff ? { backgroundColor: "#f59e0b", boxShadow: "0 0 8px #f59e0b" } : {}}></span>
             <span>
               {selectedPatient === "live"
-                ? (liveStatus?.is_active ? `ESP32 সক্রিয় (${liveStatus.samples_count} স্যাম্পল)` : "ESP32 অপেক্ষায়...")
+                ? (isLeadsOff
+                    ? "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন"
+                    : (liveStatus?.is_active ? `ESP32 সক্রিয় (${liveStatus.samples_count} স্যাম্পল)` : "ESP32 অপেক্ষায়..."))
                 : "PhysioNet ভ্যালিডেটেড স্ট্রিম"}
             </span>
           </div>
@@ -807,10 +934,12 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                 <span className="icu-dot-cyan"></span>
                 <strong>LEAD II ইসিজি অসিলোস্কোপ (100 Hz)</strong>
                 {edrSignal.length > 0 && (
-                  <span className={`icu-badge-edr ${(prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim)) ? "edr-badge-apnea" : "edr-badge-normal"}`}>
-                    {(prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim))
-                      ? "⚠️ EDR রেসপিরেটরি সাপ্রেশন"
-                      : "🫁 + EDR Respiration"}
+                  <span className={`icu-badge-edr ${isLeadsOff ? "edr-badge-warning" : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim)) ? "edr-badge-apnea" : "edr-badge-normal")}`}>
+                    {isLeadsOff
+                      ? "⚠️ সংকেত বিচ্ছিন্ন (Leads Off)"
+                      : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim))
+                        ? "⚠️ EDR শ্বাসরোধ ফ্ল্যাটলাইন"
+                        : "🫁 + EDR Respiration")}
                   </span>
                 )}
               </div>
@@ -888,29 +1017,37 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
           
           {/* Primary AI Diagnostic Verdict Card */}
           {prediction && (
-            <div className={`icu-card icu-verdict-card ${prediction.is_apnea ? "verdict-apnea" : "verdict-normal"}`}>
+            <div className={`icu-card icu-verdict-card ${
+              isLeadsOff
+                ? "verdict-warning"
+                : (prediction.is_apnea ? "verdict-apnea" : "verdict-normal")
+            }`}>
               <div className="verdict-header">
                 <span className="verdict-tag">
-                  <span className="verdict-indicator-dot"></span> এআই ডায়াগনস্টিক রেজাল্ট
+                  <span className="verdict-indicator-dot"></span> {isLeadsOff ? "হার্ডওয়্যার স্ট্যাটাস" : "এআই ডায়াগনস্টিক রেজাল্ট"}
                 </span>
                 <span className="verdict-confidence">
-                  কনফিডেন্স: <strong>{prediction.confidence}%</strong>
+                  কনফিডেন্স: <strong>{isLeadsOff ? "০%" : `${prediction.confidence}%`}</strong>
                 </span>
               </div>
 
               <h4 className="verdict-title">
-                {prediction.is_apnea
-                  ? "⚠️ স্লিপ অ্যাপনিয়া ইভেন্ট শনাক্ত (Apnea Detected)"
-                  : "✅ স্বাভাবিক সাইনাস রিদম (Normal Sinus)"}
+                {isLeadsOff
+                  ? "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal)"
+                  : (prediction.is_apnea
+                    ? "⚠️ স্লিপ অ্যাপনিয়া ইভেন্ট শনাক্ত (Apnea Detected)"
+                    : "✅ স্বাভাবিক সাইনাস রিদম (Normal Sinus)")}
               </h4>
 
               <p className="verdict-desc">
-                {prediction.is_apnea
-                  ? "১০ সেকেন্ডের উইন্ডোতে আর-পিক সাপ্রেশন এবং ভেগাল কার্ডিয়াক পজ পাওয়া গেছে, যা অবস্ট্রাকটিভ স্লিপ অ্যাপনিয়ার নির্দেশক।"
-                  : "ইসিজি মরফোলজি এবং হার্টরেট ভ্যারিয়্যাবিলিটি সম্পূর্ণ স্বাভাবিক সীমার মধ্যে রয়েছে। কোনো অ্যাপনিয়া ঝুঁকি নেই।"}
+                {isLeadsOff
+                  ? "ইলেকট্রোড প্যাড শরীর থেকে বিচ্ছিন্ন বা ফ্ল্যাটলাইন সংকেত পাওয়া যাচ্ছে। অনুগ্রহ করে RA, LA ও RL লিড সঠিকভাবে স্থাপন করুন।"
+                  : (prediction.is_apnea
+                    ? "১০ সেকেন্ডের উইন্ডোতে শ্বাসরোধ, আর-পিক সাপ্রেশন এবং ভেগাল কার্ডিয়াক পজ পাওয়া গেছে, যা অবস্ট্রাকটিভ স্লিপ অ্যাপনিয়ার নির্দেশক।"
+                    : "ইসিজি মরফোলজি এবং হার্টরেট ভ্যারিয়্যাবিলিটি সম্পূর্ণ স্বাভাবিক সীমার মধ্যে রয়েছে। কোনো অ্যাপনিয়া ঝুঁকি নেই।")}
               </p>
 
-              <button className="icu-btn-discuss" onClick={handleDiscuss} type="button">
+              <button className="icu-btn-discuss" onClick={handleDiscuss} type="button" disabled={isLeadsOff}>
                 💬 সহায়ক এআই-এর সাথে আলোচনা করুন
               </button>
             </div>
@@ -981,7 +1118,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <div className="vital-content">
               <span className="vital-label">হার্ট রেট (HR)</span>
               <div className="vital-val">
-                {prediction.metrics.bpm} <span className="vital-unit">BPM</span>
+                {isLeadsOff ? "--" : prediction.metrics.bpm} <span className="vital-unit">{isLeadsOff ? "" : "BPM"}</span>
               </div>
             </div>
           </div>
@@ -991,7 +1128,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <div className="vital-content">
               <span className="vital-label">গড় RR ব্যবধান</span>
               <div className="vital-val">
-                {prediction.metrics.rr_interval_ms} <span className="vital-unit">ms</span>
+                {isLeadsOff ? "--" : prediction.metrics.rr_interval_ms} <span className="vital-unit">{isLeadsOff ? "" : "ms"}</span>
               </div>
             </div>
           </div>
@@ -1001,7 +1138,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <div className="vital-content">
               <span className="vital-label">HRV (RMSSD)</span>
               <div className="vital-val">
-                {prediction.metrics.hrv_rmssd_ms} <span className="vital-unit">ms</span>
+                {isLeadsOff ? "--" : prediction.metrics.hrv_rmssd_ms} <span className="vital-unit">{isLeadsOff ? "" : "ms"}</span>
               </div>
             </div>
           </div>
@@ -1010,7 +1147,9 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <span className="vital-icon">🩺</span>
             <div className="vital-content">
               <span className="vital-label">কার্ডিয়াক রিদম</span>
-              <div className={`vital-val rhythm-val ${prediction.is_apnea ? "text-danger" : "text-safe"}`}>
+              <div className={`vital-val rhythm-val ${
+                isLeadsOff ? "text-warning" : (prediction.is_apnea ? "text-danger" : "text-safe")
+              }`}>
                 {prediction.metrics.rhythm_status}
               </div>
             </div>

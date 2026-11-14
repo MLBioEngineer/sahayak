@@ -1,7 +1,16 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
-from services.ecg_service import predict_epoch, analyze_session, generate_benchmark_signal, extract_edr
+import numpy as np
+import time
+from collections import deque
+from services.ecg_service import (
+    predict_epoch,
+    analyze_session,
+    generate_benchmark_signal,
+    extract_edr,
+    check_is_leads_off,
+)
 
 router = APIRouter()
 
@@ -88,32 +97,66 @@ def get_latest_stream():
     """
     Endpoint for frontend to fetch latest buffered telemetry from ESP32.
     Includes active status, window samples, and live model prediction.
+    If no physical hardware is actively streaming, returns default high-fidelity Lead II benchmark telemetry.
     """
     current_time = time.time()
     # Device is considered active if a chunk was received within last 12 seconds
     is_active = (current_time - LAST_STREAM_TIME < 12.0) if LAST_STREAM_TIME > 0 else False
     samples_list = list(STREAM_BUFFER)
     
-    prediction = None
-    edr_signal = None
-    if len(samples_list) >= 100:
-        try:
-            # Predict using latest live window (1000 samples = 10 seconds @ 100 Hz)
-            window = samples_list[-1000:]
+    # 1. Hardware is actively streaming
+    if is_active and len(samples_list) >= 50:
+        window = samples_list[-1000:]
+        raw_arr = np.array(window, dtype=np.float32)
+        
+        is_leads_off = check_is_leads_off(raw_arr)
+        
+        if is_leads_off:
+            display_samples = [round(float(v), 3) for v in window]
             prediction = predict_epoch(window)
-            edr_signal = extract_edr(window)
-        except Exception as e:
-            prediction = None
-            edr_signal = None
+            edr_signal = [1.0] * len(window)
+        else:
+            # If raw ADC (e.g. 0-4095 with baseline ~2000), center and scale to clean biopotential range
+            if np.mean(raw_arr) > 20:
+                centered = raw_arr - np.median(raw_arr)
+                std_c = float(np.std(centered))
+                scale = 1.8 / (std_c * 2.5 + 1e-5) if std_c > 0.1 else 1.0
+                display_samples = [round(float(v), 3) for v in (centered * scale)]
+            else:
+                display_samples = [round(float(v), 3) for v in window]
+                
+            prediction = predict_epoch(display_samples)
+            is_bh = bool(prediction.get("metrics", {}).get("is_breath_hold", False) or prediction.get("is_apnea", False))
+            edr_signal = extract_edr(display_samples, is_breath_hold=is_bh)
+            is_leads_off = bool(prediction.get("is_leads_off", False))
+            
+        return {
+            "is_active": True,
+            "is_leads_off": is_leads_off,
+            "device_id": LAST_DEVICE_ID,
+            "last_received_seconds_ago": round(current_time - LAST_STREAM_TIME, 1),
+            "samples_count": len(samples_list),
+            "samples": display_samples,
+            "edr_signal": edr_signal,
+            "prediction": prediction
+        }
 
+    # 2. Hardware is IDLE or not connected: Return default high-fidelity Lead II telemetry
+    default_bench = generate_benchmark_signal("normal")
+    default_ecg = default_bench["ecg_signal"][:1000]
+    default_edr = default_bench["edr_signal"][:1000]
+    prediction = predict_epoch(default_ecg)
+    
     return {
-        "is_active": is_active,
+        "is_active": False,
+        "is_leads_off": False,
         "device_id": LAST_DEVICE_ID if LAST_STREAM_TIME > 0 else None,
         "last_received_seconds_ago": round(current_time - LAST_STREAM_TIME, 1) if LAST_STREAM_TIME > 0 else None,
         "samples_count": len(samples_list),
-        "samples": samples_list,
-        "edr_signal": edr_signal,
-        "prediction": prediction
+        "samples": default_ecg,
+        "edr_signal": default_edr,
+        "prediction": prediction,
+        "message": "ESP32 অপেক্ষায়... (Standby / Default Lead II Telemetry Active)"
     }
 
 @router.post("/stream/reset")
