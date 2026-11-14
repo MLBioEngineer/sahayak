@@ -144,22 +144,65 @@ def condition_live_ecg(raw_arr: np.ndarray) -> list[float]:
 STREAM_BUFFER = deque(maxlen=1000)
 LAST_STREAM_TIME = 0.0
 LAST_DEVICE_ID = "ESP32_NODE"
+STREAM_TIMEOUT_SECONDS = 3.5
 
 @router.post("/stream")
 def receive_hardware_stream(data: StreamChunkRequest):
     """
     Endpoint for ESP32 hardware streaming over Wi-Fi.
     Accepts real-time batches of ECG samples and buffers them in memory.
+    Guarantees buffer continuity without repeating slices or stitch-jump artifacts.
     """
     global LAST_STREAM_TIME, LAST_DEVICE_ID
-    if data.samples:
-        STREAM_BUFFER.extend(data.samples)
-    LAST_STREAM_TIME = time.time()
-    LAST_DEVICE_ID = data.device_id
+    current_time = time.time()
+
+    # If streaming was paused or disconnected for > 3.5s, clear the stale old buffer
+    # so we never stitch discontinuous temporal segments together
+    if LAST_STREAM_TIME > 0 and (current_time - LAST_STREAM_TIME > STREAM_TIMEOUT_SECONDS):
+        STREAM_BUFFER.clear()
+
+    incoming = data.samples or []
+    if not incoming:
+        return {
+            "status": "ignored",
+            "device_id": data.device_id or LAST_DEVICE_ID,
+            "samples_received": 0,
+            "buffer_size": len(STREAM_BUFFER),
+            "message": "Empty sample batch ignored"
+        }
+
+    buf_len = len(STREAM_BUFFER)
+    if buf_len > 0:
+        buf_tail = list(STREAM_BUFFER)
+        max_overlap = min(buf_len, len(incoming))
+        overlap_found = 0
+        # Detect if incoming samples overlap with the tail of the current buffer
+        # (e.g. rolling slice or duplicate re-transmission).
+        # We require either an exact duplicate packet (k == len(incoming)) or a multi-sample slice (k >= 2)
+        # to prevent accidental single-sample baseline collisions from truncating valid ECG data.
+        for k in range(max_overlap, 0, -1):
+            if k < 2 and k < len(incoming):
+                continue
+            tail_slice = buf_tail[-k:]
+            head_slice = incoming[:k]
+            if all(abs(a - b) < 1e-2 for a, b in zip(tail_slice, head_slice)):
+                overlap_found = k
+                break
+
+        incoming_to_add = incoming[overlap_found:] if overlap_found > 0 else incoming
+    else:
+        incoming_to_add = incoming
+
+    if incoming_to_add:
+        STREAM_BUFFER.extend(incoming_to_add)
+
+    LAST_STREAM_TIME = current_time
+    LAST_DEVICE_ID = data.device_id or "ESP32_NODE"
+
     return {
         "status": "received",
-        "device_id": data.device_id,
-        "samples_received": len(data.samples),
+        "device_id": LAST_DEVICE_ID,
+        "samples_received": len(incoming),
         "buffer_size": len(STREAM_BUFFER),
         "message": "Telemetry received successfully"
     }
@@ -169,64 +212,81 @@ def get_latest_stream():
     """
     Endpoint for frontend to fetch latest buffered telemetry from ESP32.
     Includes active status, window samples, and live model prediction.
-    If no physical hardware is actively streaming, returns default high-fidelity Lead II benchmark telemetry.
+    If no physical hardware is actively streaming (packet not received within 3.5s),
+    returns clean standby response with is_active: False and empty samples.
     """
     current_time = time.time()
-    # Device is considered active if a chunk was received within last 12 seconds
-    is_active = (current_time - LAST_STREAM_TIME < 12.0) if LAST_STREAM_TIME > 0 else False
+    # Device is considered active ONLY if fresh packet was received within the last 3.5 seconds AND buffer is not empty
+    is_active = (
+        (current_time - LAST_STREAM_TIME <= STREAM_TIMEOUT_SECONDS) and len(STREAM_BUFFER) > 0
+        if LAST_STREAM_TIME > 0
+        else False
+    )
+
+    # 1. Hardware is inactive or disconnected: Clean standby response
+    if not is_active or len(STREAM_BUFFER) == 0:
+        STREAM_BUFFER.clear()
+        return {
+            "is_active": False,
+            "is_leads_off": False,
+            "device_id": None,
+            "last_received_seconds_ago": round(current_time - LAST_STREAM_TIME, 1) if LAST_STREAM_TIME > 0 else None,
+            "samples_count": 0,
+            "samples": [],
+            "edr_signal": [],
+            "prediction": None,
+            "message": "ESP32 অপেক্ষায়... (Wi-Fi সংযোগের অপেক্ষায় / Disconnected)"
+        }
+
+    # 2. Hardware is actively streaming
     samples_list = list(STREAM_BUFFER)
-    
-    # 1. Hardware is actively streaming
-    if is_active and len(samples_list) >= 50:
-        window = samples_list[-1000:]
-        raw_arr = np.array(window, dtype=np.float32)
-        
-        is_leads_off = check_is_leads_off(raw_arr)
-        
-        if is_leads_off:
-            display_samples = [round(float(v), 3) for v in window]
-            prediction = predict_epoch(window, is_live_stream=True)
-            edr_signal = [1.0] * len(window)
-        else:
-            display_samples = condition_live_ecg(raw_arr)
-            prediction = predict_epoch(display_samples, is_live_stream=True)
-            is_bh = bool(prediction.get("metrics", {}).get("is_breath_hold", False))
-            edr_signal = extract_edr(display_samples, is_breath_hold=is_bh)
-            is_leads_off = bool(prediction.get("is_leads_off", False))
-            
+
+    if len(samples_list) < 10:
         return {
             "is_active": True,
-            "is_leads_off": is_leads_off,
+            "is_leads_off": False,
             "device_id": LAST_DEVICE_ID,
             "last_received_seconds_ago": round(current_time - LAST_STREAM_TIME, 1),
             "samples_count": len(samples_list),
-            "samples": display_samples,
-            "edr_signal": edr_signal,
-            "prediction": prediction
+            "samples": [round(float(v), 3) for v in samples_list],
+            "edr_signal": [1.0] * len(samples_list),
+            "prediction": None,
+            "message": f"ESP32 সক্রিয় (বাফারিং... {len(samples_list)} স্যাম্পল)"
         }
 
-    # 2. Hardware is IDLE or not connected: Return default high-fidelity Lead II telemetry
-    default_bench = generate_benchmark_signal("normal")
-    default_ecg = default_bench["ecg_signal"][:1000]
-    default_edr = default_bench["edr_signal"][:1000]
-    prediction = predict_epoch(default_ecg, is_live_stream=True)
-    
+    window = samples_list[-1000:]
+    raw_arr = np.array(window, dtype=np.float32)
+    is_leads_off = check_is_leads_off(raw_arr)
+
+    if is_leads_off:
+        display_samples = [round(float(v), 3) for v in window]
+        prediction = predict_epoch(window, is_live_stream=True)
+        edr_signal = [1.0] * len(window)
+    else:
+        display_samples = condition_live_ecg(raw_arr)
+        prediction = predict_epoch(display_samples, is_live_stream=True)
+        is_bh = bool(prediction.get("metrics", {}).get("is_breath_hold", False))
+        edr_signal = extract_edr(display_samples, is_breath_hold=is_bh)
+        is_leads_off = bool(prediction.get("is_leads_off", False))
+
     return {
-        "is_active": False,
-        "is_leads_off": False,
-        "device_id": LAST_DEVICE_ID if LAST_STREAM_TIME > 0 else None,
-        "last_received_seconds_ago": round(current_time - LAST_STREAM_TIME, 1) if LAST_STREAM_TIME > 0 else None,
+        "is_active": True,
+        "is_leads_off": is_leads_off,
+        "device_id": LAST_DEVICE_ID,
+        "last_received_seconds_ago": round(current_time - LAST_STREAM_TIME, 1),
         "samples_count": len(samples_list),
-        "samples": default_ecg,
-        "edr_signal": default_edr,
+        "samples": display_samples,
+        "edr_signal": edr_signal,
         "prediction": prediction,
-        "message": "ESP32 অপেক্ষায়... (Standby / Default Lead II Telemetry Active)"
+        "message": f"ESP32 সক্রিয় ({len(samples_list)} স্যাম্পল)"
     }
 
 @router.post("/stream/reset")
 def reset_stream_buffer():
     """Resets the live streaming buffer."""
+    global LAST_STREAM_TIME
     STREAM_BUFFER.clear()
+    LAST_STREAM_TIME = 0.0
     return {"status": "cleared", "buffer_size": 0}
 
 

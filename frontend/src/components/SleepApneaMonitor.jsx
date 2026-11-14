@@ -267,10 +267,12 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
   const isBreathHoldSimRef = useRef(false);
 
   // Benchmark patients (apnea & normal) are pre-validated and NEVER Leads Off!
+  // Live mode only checks Leads Off when hardware is actually active and sending data
   const isLeadsOff = (selectedPatient === "live" || selectedPatient === "custom")
-    ? Boolean(prediction?.is_leads_off || checkIsLeadsOff(signal))
+    ? (Boolean(selectedPatient === "custom" || (liveStatus?.is_active && signal.length > 0)) && Boolean(prediction?.is_leads_off || checkIsLeadsOff(signal)))
     : false;
 
+  const isLiveWaiting = selectedPatient === "live" && !isBreathHoldSim && (!liveStatus?.is_active || !signal || signal.length === 0);
 
   // Load benchmark on initial mount
   useEffect(() => {
@@ -311,16 +313,50 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       }
 
       setLiveStatus({
-        is_active: data.is_active,
+        is_active: Boolean(data.is_active),
         device_id: data.device_id,
         last_received_seconds_ago: data.last_received_seconds_ago,
-        samples_count: data.samples_count
+        samples_count: data.samples_count || 0
       });
 
+      // 1. Hardware is inactive / disconnected: clean medical standby (NO stale loop, NO false active)
+      if (!data.is_active || !data.samples || data.samples.length === 0) {
+        setSignal([]);
+        setEdrSignal([]);
+        setPrediction({
+          is_apnea: false,
+          is_leads_off: false,
+          confidence: 0,
+          label: "Waiting",
+          model_used: "ESP32 Wi-Fi Telemetry Monitor",
+          metrics: {
+            bpm: 0,
+            rr_interval_ms: 0,
+            hrv_rmssd_ms: 0,
+            min_bpm: 0,
+            max_bpm: 0,
+            rhythm_status: "⏳ ESP32 ডিভাইসের অপেক্ষায় (অসংযুক্ত)",
+            peaks_count: 0,
+            is_breath_hold: false,
+            poincare: {
+              sd1: 0,
+              sd2: 0,
+              ratio: 0,
+              autonomic_status: "⏳ ডিভাইসের অপেক্ষায়...",
+              pattern: "সংযোগের অপেক্ষায়",
+              points: []
+            }
+          },
+          xai: null
+        });
+        return;
+      }
+
+      // 2. Hardware is genuinely active (fresh packets received within 3.5s)
       if (data.samples && data.samples.length > 0) {
         const leadsOff = data.is_leads_off || checkIsLeadsOff(data.samples);
         setSignal(data.samples);
-        
+
         if (leadsOff) {
           // Genuinely flatline / disconnected leads from hardware
           setEdrSignal(new Array(data.samples.length).fill(1.0));
@@ -348,18 +384,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                 points: []
               }
             },
-            xai: {
-              saliency_weights: new Array(100).fill(0),
-              salient_regions: [
-                {
-                  time_range: "০.০ - ১০.০ সেকেন্ড",
-                  importance: "সংকেত অনুপস্থিত",
-                  finding: "ইলেকট্রোড শরীর থেকে বিচ্ছিন্ন বা ফ্ল্যাটলাইন। RA, LA এবং RL ইলেকট্রোড পরীক্ষা করুন।"
-                }
-              ],
-              xai_summary: "⚠️ লিডস-অফ: কোনো ইসিজি সংকেত পাওয়া যাচ্ছে না। অনুগ্রহ করে রোগীর শরীরে ইলেকট্রোড সঠিকভাবে সংযুক্ত করুন।",
-              method: "Lead Integrity Check"
-            }
+            xai: null
           });
         } else {
           // Active valid signal:
@@ -394,7 +419,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                 is_breath_hold: isApneaState,
                 rhythm_status: isApneaState
                   ? "⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Detected)"
-                  : "স্বাভাবিক সাইনাস রিদম (Normal Sinus Rhythm)",
+                  : "🟢 ESP32 সক্রিয় (স্বাভাবিক রিদম)",
                 poincare: {
                   ...(predMetrics.poincare || {}),
                   points: livePoincarePts
@@ -403,15 +428,45 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             });
           }
         }
-      } else {
-        // Fallback default
-        const normalBase = getFallbackBenchmarkData("normal");
-        setSignal(normalBase.ecg_signal);
-        setEdrSignal(normalBase.edr_signal);
-        setPrediction(normalBase.model_prediction);
       }
     } catch (err) {
       console.error("Live stream fetch error:", err);
+      if (!isBreathHoldSimRef.current) {
+        setLiveStatus({
+          is_active: false,
+          device_id: null,
+          last_received_seconds_ago: null,
+          samples_count: 0
+        });
+        setSignal([]);
+        setEdrSignal([]);
+        setPrediction({
+          is_apnea: false,
+          is_leads_off: false,
+          confidence: 0,
+          label: "Waiting",
+          model_used: "ESP32 Wi-Fi Telemetry Monitor",
+          metrics: {
+            bpm: 0,
+            rr_interval_ms: 0,
+            hrv_rmssd_ms: 0,
+            min_bpm: 0,
+            max_bpm: 0,
+            rhythm_status: "⏳ ESP32 ডিভাইসের অপেক্ষায় (অসংযুক্ত)",
+            peaks_count: 0,
+            is_breath_hold: false,
+            poincare: {
+              sd1: 0,
+              sd2: 0,
+              ratio: 0,
+              autonomic_status: "⏳ ডিভাইসের অপেক্ষায়...",
+              pattern: "সংযোগের অপেক্ষায়",
+              points: []
+            }
+          },
+          xai: null
+        });
+      }
     }
   }
 
@@ -420,18 +475,44 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
     setSelectedPatient("live");
     setIsBreathHoldSim(false);
     isBreathHoldSimRef.current = false;
-
-    // Immediately seed live mode with healthy sinus ECG + continuous EDR Respiration
-    const normalBase = getFallbackBenchmarkData("normal");
-    setSignal(normalBase.ecg_signal);
-    setEdrSignal(normalBase.edr_signal);
-    setPrediction({
-      ...normalBase.model_prediction,
-      metrics: {
-        ...normalBase.model_prediction.metrics,
-        rhythm_status: "📡 ESP32 লাইভ টেলিমেট্রি সক্রিয় (Live Telemetry Synchronized)"
-      }
+    setLiveStatus({
+      is_active: false,
+      device_id: null,
+      last_received_seconds_ago: null,
+      samples_count: 0
     });
+
+    // Initialize in clean medical standby while polling for hardware
+    setSignal([]);
+    setEdrSignal([]);
+    setPrediction({
+      is_apnea: false,
+      is_leads_off: false,
+      confidence: 0,
+      label: "Waiting",
+      model_used: "ESP32 Wi-Fi Telemetry Monitor",
+      metrics: {
+        bpm: 0,
+        rr_interval_ms: 0,
+        hrv_rmssd_ms: 0,
+        min_bpm: 0,
+        max_bpm: 0,
+        rhythm_status: "⏳ ESP32 ডিভাইসের অপেক্ষায় (অসংযুক্ত)",
+        peaks_count: 0,
+        is_breath_hold: false,
+        poincare: {
+          sd1: 0,
+          sd2: 0,
+          ratio: 0,
+          autonomic_status: "⏳ ডিভাইসের অপেক্ষায়...",
+          pattern: "সংযোগের অপেক্ষায়",
+          points: []
+        }
+      },
+      xai: null
+    });
+    // Immediately query backend stream status
+    fetchLiveStreamData();
   }
 
   function handleToggleBreathHold() {
@@ -440,7 +521,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
     setIsBreathHoldSim(nextState);
     if (selectedPatient === "live") {
       if (nextState) {
-        // Switch to Apnea simulation with flatlined EDR & cardiac pause
+        // Switch to simulated Apnea test
         const apneaDemo = getFallbackBenchmarkData("apnea");
         setSignal(apneaDemo.ecg_signal);
         setEdrSignal(computeLiveEdr(apneaDemo.ecg_signal, true));
@@ -448,33 +529,50 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
           ...apneaDemo.model_prediction,
           is_apnea: true,
           confidence: 94.5,
-          label: "Apnea",
+          label: "Apnea (Simulated)",
           metrics: {
             ...apneaDemo.model_prediction.metrics,
-            rhythm_status: "⚠️ শ্বাসরোধ / স্লিপ অ্যাপনিয়া (Breath Cessation / Apnea Detected)",
+            rhythm_status: "⚠️ সিমুলেটেড শ্বাসরোধ টেস্ট (Simulated Apnea Active)",
             bpm: 56
           },
           xai: {
             ...apneaDemo.model_prediction.xai,
-            xai_summary: "রিয়েল-টাইম লাইভ টেস্ট: ৫ সেকেন্ড শ্বাস বন্ধ রাখায় থোরাসিক রেসপিরেটরি সাপ্রেশন ও ইসিজি অ্যাম্প্লিটিউড ড্রপ শনাক্ত করে স্লিপ অ্যাপনিয়া নির্ণয় করা হয়েছে।"
+            xai_summary: "রিয়েল-টাইম লাইভ টেস্ট: ৫ সেকেন্ড শ্বাস বন্ধ রাখায় থোরাসিক রেসপিরেটরি সাপ্রেশন ও ইসিজি অ্যাম্প্লিটিউড ড্রপ শনাক্ত করে স্লিপ অ্যাপনিয়া নির্ণয় করা হয়েছে (সিমুলেশন)।"
           }
         });
       } else {
-        // Return to healthy normal breathing with sinusoidal EDR
-        const normalDemo = getFallbackBenchmarkData("normal");
-        setSignal(normalDemo.ecg_signal);
-        setEdrSignal(computeLiveEdr(normalDemo.ecg_signal, false));
-        setPrediction({
-          ...normalDemo.model_prediction,
-          is_apnea: false,
-          confidence: 96.4,
-          label: "Normal",
-          metrics: {
-            ...normalDemo.model_prediction.metrics,
-            rhythm_status: "📡 ESP32 লাইভ টেলিমেট্রি সক্রিয় (Live Telemetry Synchronized)",
-            bpm: 74
-          }
-        });
+        // Exiting breath-hold simulation: immediately clear simulation artifacts if hardware not confirmed active
+        if (!liveStatus?.is_active) {
+          setSignal([]);
+          setEdrSignal([]);
+          setPrediction({
+            is_apnea: false,
+            is_leads_off: false,
+            confidence: 0,
+            label: "Waiting",
+            model_used: "ESP32 Wi-Fi Telemetry Monitor",
+            metrics: {
+              bpm: 0,
+              rr_interval_ms: 0,
+              hrv_rmssd_ms: 0,
+              min_bpm: 0,
+              max_bpm: 0,
+              rhythm_status: "⏳ ESP32 ডিভাইসের অপেক্ষায় (অসংযুক্ত)",
+              peaks_count: 0,
+              is_breath_hold: false,
+              poincare: {
+                sd1: 0,
+                sd2: 0,
+                ratio: 0,
+                autonomic_status: "⏳ ডিভাইসের অপেক্ষায়...",
+                pattern: "সংযোগের অপেক্ষায়",
+                points: []
+              }
+            },
+            xai: null
+          });
+        }
+        fetchLiveStreamData();
       }
     }
   }
@@ -549,8 +647,105 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
   }
 
 
+  // Dedicated animation effect for Live Medical Standby Canvas (Gentle Pulse)
+  useEffect(() => {
+    if (!isLiveWaiting) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let animId;
+    const startTime = performance.now();
+
+    const renderStandby = (now) => {
+      const elapsed = (now - startTime) / 1000;
+      // Gentle sinusoidal pulsing alpha factor between 0.35 and 0.85 (frequency ~ 0.8 Hz)
+      const pulse = 0.60 + 0.25 * Math.sin(elapsed * 3.5);
+      const glowBlur = 5 + 5 * Math.sin(elapsed * 3.5);
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      // Draw background grid (medical monitor style)
+      ctx.fillStyle = "#0c151c";
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = "rgba(0, 255, 136, 0.08)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x < width; x += 25) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += 25) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      const ecgHeight = height * 0.65;
+      const ecgMidY = ecgHeight * 0.52;
+      const edrMidY = ecgHeight + (height * 0.35 / 2);
+
+      // Clean flat medical standby baseline for ECG with gentle pulsing glow
+      ctx.beginPath();
+      ctx.moveTo(0, ecgMidY);
+      ctx.lineTo(width, ecgMidY);
+      ctx.strokeStyle = `rgba(245, 158, 11, ${pulse.toFixed(2)})`;
+      ctx.lineWidth = 2.0;
+      ctx.shadowBlur = Math.max(2, glowBlur);
+      ctx.shadowColor = "#f59e0b";
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Centered Medical Standby Prompt with gentle guidance
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 14px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("📡 ESP32 সংযোগের অপেক্ষায়... (Waiting for ESP32 Wi-Fi Stream)", width / 2, ecgMidY - 26);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+      ctx.font = "12px system-ui, -apple-system, sans-serif";
+      ctx.fillText("ওয়াইফাই সংযোগের অপেক্ষায় — ESP32 চালু হলে স্বয়ংক্রিয়ভাবে লাইভ সিগন্যাল শুরু হবে", width / 2, ecgMidY + 28);
+
+      // EDR divider line
+      ctx.beginPath();
+      ctx.moveTo(0, ecgHeight);
+      ctx.lineTo(width, ecgHeight);
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.25)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Flat medical standby baseline for EDR with subtle pulse
+      ctx.beginPath();
+      ctx.moveTo(0, edrMidY);
+      ctx.lineTo(width, edrMidY);
+      ctx.strokeStyle = `rgba(245, 158, 11, ${(pulse * 0.75).toFixed(2)})`;
+      ctx.lineWidth = 1.8;
+      ctx.shadowBlur = Math.max(1, glowBlur * 0.6);
+      ctx.shadowColor = "#f59e0b";
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Dynamic EDR Status Text Badge on Canvas
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 11.5px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("⏳ ডিভাইসের অপেক্ষায়... (Waiting for ESP32 Telemetry)", 14, ecgHeight + 22);
+
+      animId = requestAnimationFrame(renderStandby);
+    };
+
+    animId = requestAnimationFrame(renderStandby);
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [isLiveWaiting]);
+
   // Draw ECG and EDR Waveforms on Canvas
   useEffect(() => {
+    if (isLiveWaiting) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -732,7 +927,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
     }
 
     ctx.shadowBlur = 0;
-  }, [signal, edrSignal, prediction, selectedPatient, isBreathHoldSim]);
+  }, [signal, edrSignal, prediction, selectedPatient, isBreathHoldSim, liveStatus, isLiveWaiting]);
 
   // Draw 2D Poincaré Scatter Plot & Autonomic HRV Ellipse
   useEffect(() => {
@@ -746,6 +941,18 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
     // Clear dark medical canvas background
     ctx.fillStyle = "#0a1017";
     ctx.fillRect(0, 0, width, height);
+
+    // If waiting for ESP32 hardware, display clean standby status
+    if (isLiveWaiting) {
+      ctx.fillStyle = "rgba(251, 191, 36, 0.85)";
+      ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("⏳ ডিভাইসের অপেক্ষায়...", width / 2, height / 2 - 10);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.font = "11.5px system-ui, -apple-system, sans-serif";
+      ctx.fillText("(ESP32 টেলিমেট্রি আসলে HRV প্লট তৈরি হবে)", width / 2, height / 2 + 14);
+      return;
+    }
 
     // Grid bounds: 500ms to 1300ms
     const minRR = 500;
@@ -851,7 +1058,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
     });
 
     ctx.shadowBlur = 0;
-  }, [prediction, showPoincare]);
+  }, [prediction, showPoincare, isLiveWaiting]);
 
   function handleFileUpload(e) {
     const file = e.target.files[0];
@@ -887,7 +1094,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
   }
 
   function handleDiscuss() {
-    if (!prediction) return;
+    if (!prediction || isLiveWaiting) return;
     const isApnea = prediction.is_apnea;
     const promptText = `আমার ইসিজি স্লিপ অ্যাপনিয়া টেস্ট সম্পন্ন হয়েছে। ফলাফল: ${
       isApnea ? "শ্বাসরোধ (Sleep Apnea Event) শনাক্ত হয়েছে" : "স্বাভাবিক রিদম (Normal Sinus)"
@@ -898,7 +1105,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
   }
 
   async function handleExportPdf() {
-    if (!prediction) return;
+    if (!prediction || isLiveWaiting) return;
     setExportingPdf(true);
     try {
       await downloadEcgReportPdf({
@@ -941,13 +1148,40 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
         </div>
 
         <div className="icu-header-actions">
-          <div className={`icu-telemetry-badge ${selectedPatient === "live" ? (isLeadsOff ? "waiting" : (liveStatus?.is_active ? "online" : "waiting")) : "online"}`}>
-            <span className="live-pulse-dot" style={isLeadsOff ? { backgroundColor: "#f59e0b", boxShadow: "0 0 8px #f59e0b" } : {}}></span>
+          <div
+            className={`icu-telemetry-badge ${
+              selectedPatient === "live"
+                ? (isBreathHoldSim
+                    ? "waiting active-breath"
+                    : (liveStatus?.is_active && signal.length > 0
+                        ? (isLeadsOff ? "waiting" : "online")
+                        : "waiting"))
+                : "online"
+            }`}
+          >
+            <span
+              className="live-pulse-dot"
+              style={
+                selectedPatient === "live"
+                  ? (isBreathHoldSim
+                      ? { backgroundColor: "#ef4444", boxShadow: "0 0 8px #ef4444" }
+                      : (isLeadsOff
+                          ? { backgroundColor: "#f59e0b", boxShadow: "0 0 8px #f59e0b" }
+                          : (liveStatus?.is_active && signal.length > 0
+                              ? { backgroundColor: "#00ff88", boxShadow: "0 0 8px #00ff88" }
+                              : { backgroundColor: "#fbbf24", boxShadow: "0 0 8px #fbbf24" })))
+                  : {}
+              }
+            ></span>
             <span>
               {selectedPatient === "live"
-                ? (isLeadsOff
-                    ? "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন"
-                    : (liveStatus?.is_active ? `ESP32 সক্রিয় (${liveStatus.samples_count} স্যাম্পল)` : "ESP32 অপেক্ষায়..."))
+                ? (isBreathHoldSim
+                    ? "🫁 সিমুলেটেড অ্যাপনিয়া টেস্ট"
+                    : (isLeadsOff
+                        ? "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন"
+                        : (liveStatus?.is_active && signal.length > 0
+                            ? `🟢 ESP32 সক্রিয় (${liveStatus.samples_count} স্যাম্পল)`
+                            : "🟡 ESP32 অপেক্ষায়... (ওয়াইফাই সংযোগের অপেক্ষায়)")))
                 : "PhysioNet ভ্যালিডেটেড স্ট্রিম"}
             </span>
           </div>
@@ -964,7 +1198,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
           <button
             className="icu-btn-pdf"
             onClick={handleExportPdf}
-            disabled={exportingPdf}
+            disabled={exportingPdf || isLiveWaiting}
             type="button"
             title="অফিসিয়াল মেডিকেল ডায়াগনস্টিক রিপোর্ট ডাউনলোড করুন"
           >
@@ -1003,9 +1237,9 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <button
               className={`icu-pill-btn breath-btn ${isBreathHoldSim ? "active-breath" : ""}`}
               onClick={handleToggleBreathHold}
-              title="৫ সেকেন্ড শ্বাস বন্ধ রেখে লাইভ স্লিপ অ্যাপনিয়া পরীক্ষা ও প্রদর্শন করুন"
+              title="৫ সেকেন্ড শ্বাস বন্ধ রেখে লাইভ স্লিপ অ্যাপনিয়া পরীক্ষা ও প্রদর্শন করুন (সিমুলেশন)"
             >
-              {isBreathHoldSim ? "⚠️ শ্বাসরোধ চলছে (Apnea On)..." : "🫁 ৫-সেক শ্বাসরোধ টেস্ট"}
+              {isBreathHoldSim ? "⚠️ সিমুলেটেড শ্বাসরোধ চলছে (Apnea On)..." : "🫁 ৫-সেক শ্বাসরোধ টেস্ট"}
             </button>
           )}
         </div>
@@ -1029,19 +1263,29 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
               <div className="icu-card-title">
                 <span className="icu-dot-cyan"></span>
                 <strong>LEAD II ইসিজি অসিলোস্কোপ (100 Hz)</strong>
-                {edrSignal.length > 0 && (
-                  <span className={`icu-badge-edr ${isLeadsOff ? "edr-badge-warning" : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim)) ? "edr-badge-apnea" : "edr-badge-normal")}`}>
-                    {isLeadsOff
-                      ? "⚠️ সংকেত বিচ্ছিন্ন (Leads Off)"
-                      : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim))
-                        ? "⚠️ EDR শ্বাসরোধ ফ্ল্যাটলাইন"
-                        : "🫁 EDR: স্বাভাবিক শ্বাস-প্রশ্বাস")}
+                {isLiveWaiting ? (
+                  <span className="icu-badge-edr" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24", borderColor: "rgba(245, 158, 11, 0.35)" }}>
+                    ⏳ ডিভাইসের অপেক্ষায়...
                   </span>
+                ) : (
+                  edrSignal.length > 0 && (
+                    <span className={`icu-badge-edr ${isLeadsOff ? "edr-badge-warning" : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim)) ? "edr-badge-apnea" : "edr-badge-normal")}`}>
+                      {isLeadsOff
+                        ? "⚠️ সংকেত বিচ্ছিন্ন (Leads Off)"
+                        : ((prediction?.is_apnea || (selectedPatient === "live" && isBreathHoldSim))
+                          ? (isBreathHoldSim ? "⚠️ সিমুলেটেড EDR শ্বাসরোধ ফ্ল্যাটলাইন" : "⚠️ EDR শ্বাসরোধ ফ্ল্যাটলাইন")
+                          : "🫁 EDR: স্বাভাবিক শ্বাস-প্রশ্বাস")}
+                    </span>
+                  )
                 )}
               </div>
               <div className="icu-window-info">
                 {selectedPatient === "live"
-                  ? `লাইভ উইন্ডো: ${Math.round(signal.length / 100)} সেকেন্ড (${signal.length} স্যাম্পল)`
+                  ? (isBreathHoldSim
+                      ? "সিমুলেশন উইন্ডো: ১০ সেকেন্ড (১০০০ স্যাম্পল)"
+                      : (liveStatus?.is_active && signal.length > 0
+                          ? `লাইভ উইন্ডো: ${Math.round(signal.length / 100)} সেকেন্ড (${signal.length} স্যাম্পল)`
+                          : "লাইভ উইন্ডো: ESP32 অসংযুক্ত (০ স্যাম্পল)"))
                   : `উইন্ডো: ${Math.round(signal.length / 100) || 10} সেকেন্ড (${(signal.length || 1000).toLocaleString("bn-BD")} স্যাম্পল)`}
               </div>
             </div>
@@ -1114,36 +1358,54 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
           {/* Primary AI Diagnostic Verdict Card */}
           {prediction && (
             <div className={`icu-card icu-verdict-card ${
-              isLeadsOff
+              isLiveWaiting
                 ? "verdict-warning"
-                : (prediction.is_apnea ? "verdict-apnea" : "verdict-normal")
+                : (isLeadsOff
+                    ? "verdict-warning"
+                    : (prediction.is_apnea ? "verdict-apnea" : "verdict-normal"))
             }`}>
               <div className="verdict-header">
                 <span className="verdict-tag">
-                  <span className="verdict-indicator-dot"></span> {isLeadsOff ? "হার্ডওয়্যার স্ট্যাটাস" : "এআই ডায়াগনস্টিক রেজাল্ট"}
+                  <span className="verdict-indicator-dot"></span>
+                  {isLiveWaiting
+                    ? "হার্ডওয়্যার স্ট্যাটাস"
+                    : (isLeadsOff
+                        ? "হার্ডওয়্যার স্ট্যাটাস"
+                        : (isBreathHoldSim ? "সিমুলেশন টেস্ট রেজাল্ট" : "এআই ডায়াগনস্টিক রেজাল্ট"))}
                 </span>
                 <span className="verdict-confidence">
-                  কনফিডেন্স: <strong>{isLeadsOff ? "০%" : `${prediction.confidence}%`}</strong>
+                  কনফিডেন্স: <strong>{isLiveWaiting || isLeadsOff ? "০%" : `${prediction.confidence}%`}</strong>
                 </span>
               </div>
 
               <h4 className="verdict-title">
-                {isLeadsOff
-                  ? "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal)"
-                  : (prediction.is_apnea
-                    ? "⚠️ স্লিপ অ্যাপনিয়া ইভেন্ট শনাক্ত (Apnea Detected)"
-                    : "✅ স্বাভাবিক সাইনাস রিদম (Normal Sinus)")}
+                {isLiveWaiting
+                  ? "🟡 ESP32 অপেক্ষায় (অসংযুক্ত)"
+                  : (isLeadsOff
+                      ? "⚠️ লিডস-অফ / সংকেত বিচ্ছিন্ন (Leads Off / No Signal)"
+                      : (prediction.is_apnea
+                          ? (isBreathHoldSim ? "⚠️ সিমুলেটেড স্লিপ অ্যাপনিয়া (Simulated Apnea Active)" : "⚠️ স্লিপ অ্যাপনিয়া ইভেন্ট শনাক্ত (Apnea Detected)")
+                          : "✅ স্বাভাবিক সাইনাস রিদম (Normal Sinus)"))}
               </h4>
 
               <p className="verdict-desc">
-                {isLeadsOff
-                  ? "ইলেকট্রোড প্যাড শরীর থেকে বিচ্ছিন্ন বা ফ্ল্যাটলাইন সংকেত পাওয়া যাচ্ছে। অনুগ্রহ করে RA, LA ও RL লিড সঠিকভাবে স্থাপন করুন।"
-                  : (prediction.is_apnea
-                    ? "১০ সেকেন্ডের উইন্ডোতে শ্বাসরোধ, আর-পিক সাপ্রেশন এবং ভেগাল কার্ডিয়াক পজ পাওয়া গেছে, যা অবস্ট্রাকটিভ স্লিপ অ্যাপনিয়ার নির্দেশক।"
-                    : "ইসিজি মরফোলজি এবং হার্টরেট ভ্যারিয়্যাবিলিটি সম্পূর্ণ স্বাভাবিক সীমার মধ্যে রয়েছে। কোনো অ্যাপনিয়া ঝুঁকি নেই।")}
+                {isLiveWaiting
+                  ? "শারীরিক ESP32 হার্ডওয়্যারটি এখনও কোনো টেলিমেট্রি পাঠায়নি। ডিভাইসটি ওয়াইফাইতে যুক্ত করুন অথবা ডেমো দেখতে '৫-সেক শ্বাসরোধ টেস্ট' চাপুন।"
+                  : (isLeadsOff
+                      ? "ইলেকট্রোড প্যাড শরীর থেকে বিচ্ছিন্ন বা ফ্ল্যাটলাইন সংকেত পাওয়া যাচ্ছে। অনুগ্রহ করে RA, LA ও RL লিড সঠিকভাবে স্থাপন করুন।"
+                      : (prediction.is_apnea
+                          ? (isBreathHoldSim
+                              ? "৫ সেকেন্ড শ্বাস বন্ধ রাখায় থোরাসিক রেসপিরেটরি সাপ্রেশন ও ইসিজি অ্যাম্প্লিটিউড ড্রপ শনাক্ত করে সিমুলেটেড স্লিপ অ্যাপনিয়া নির্দেশ করা হয়েছে।"
+                              : "১০ সেকেন্ডের উইন্ডোতে শ্বাসরোধ, আর-পিক সাপ্রেশন এবং ভেগাল কার্ডিয়াক পজ পাওয়া গেছে, যা অবস্ট্রাকটিভ স্লিপ অ্যাপনিয়ার নির্দেশক।")
+                          : "ইসিজি মরফোলজি এবং হার্টরেট ভ্যারিয়্যাবিলিটি সম্পূর্ণ স্বাভাবিক সীমার মধ্যে রয়েছে। কোনো অ্যাপনিয়া ঝুঁকি নেই।"))}
               </p>
 
-              <button className="icu-btn-discuss" onClick={handleDiscuss} type="button" disabled={isLeadsOff}>
+              <button
+                className="icu-btn-discuss"
+                onClick={handleDiscuss}
+                type="button"
+                disabled={Boolean(isLiveWaiting || isLeadsOff)}
+              >
                 💬 সহায়ক এআই-এর সাথে আলোচনা করুন
               </button>
             </div>
@@ -1180,22 +1442,36 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                   <div className="poincare-mini-stats">
                     <div className="poincare-mini-card">
                       <span className="mini-label">SD1 (ভেগাল টোন):</span>
-                      <span className="mini-val cyan-val">{prediction.metrics.poincare?.sd1 || 23.5} ms</span>
+                      <span className="mini-val cyan-val">
+                        {isLiveWaiting || isLeadsOff ? "--" : `${prediction.metrics.poincare?.sd1 || 23.5} ms`}
+                      </span>
                     </div>
                     <div className="poincare-mini-card">
                       <span className="mini-label">SD2 (সিমপ্যাথেটিক):</span>
-                      <span className="mini-val amber-val">{prediction.metrics.poincare?.sd2 || 54.0} ms</span>
+                      <span className="mini-val amber-val">
+                        {isLiveWaiting || isLeadsOff ? "--" : `${prediction.metrics.poincare?.sd2 || 54.0} ms`}
+                      </span>
                     </div>
                     <div className="poincare-mini-card full-width">
                       <span className="mini-label">SD1/SD2 রেশিও:</span>
-                      <span className="mini-val purple-val">{prediction.metrics.poincare?.ratio || 0.44}</span>
+                      <span className="mini-val purple-val">
+                        {isLiveWaiting || isLeadsOff ? "--" : (prediction.metrics.poincare?.ratio || 0.44)}
+                      </span>
                       <span className="mini-hint">(রেফারেন্স: ০.৩৫ - ০.৭৫)</span>
                     </div>
                   </div>
 
-                  <div className={`poincare-status-pill ${prediction.is_apnea ? "status-danger" : "status-safe"}`}>
+                  <div className={`poincare-status-pill ${
+                    isLiveWaiting
+                      ? "status-warning"
+                      : (prediction.is_apnea ? "status-danger" : "status-safe")
+                  }`}>
                     <span className="status-dot"></span>
-                    <span>{prediction.metrics.poincare?.autonomic_status || "স্বাভাবিক ও ভারসাম্যপূর্ণ অটোনোমিক নিয়ন্ত্রণ"}</span>
+                    <span>
+                      {isLiveWaiting
+                        ? "⏳ ডিভাইসের অপেক্ষায়..."
+                        : (prediction.metrics.poincare?.autonomic_status || "স্বাভাবিক ও ভারসাম্যপূর্ণ অটোনোমিক নিয়ন্ত্রণ")}
+                    </span>
                   </div>
                 </div>
               )}
@@ -1214,7 +1490,8 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <div className="vital-content">
               <span className="vital-label">হার্ট রেট (HR)</span>
               <div className="vital-val">
-                {isLeadsOff ? "--" : prediction.metrics.bpm} <span className="vital-unit">{isLeadsOff ? "" : "BPM"}</span>
+                {isLiveWaiting || isLeadsOff ? "--" : prediction.metrics.bpm}{" "}
+                <span className="vital-unit">{isLiveWaiting || isLeadsOff ? "" : "BPM"}</span>
               </div>
             </div>
           </div>
@@ -1224,7 +1501,8 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <div className="vital-content">
               <span className="vital-label">গড় RR ব্যবধান</span>
               <div className="vital-val">
-                {isLeadsOff ? "--" : prediction.metrics.rr_interval_ms} <span className="vital-unit">{isLeadsOff ? "" : "ms"}</span>
+                {isLiveWaiting || isLeadsOff ? "--" : prediction.metrics.rr_interval_ms}{" "}
+                <span className="vital-unit">{isLiveWaiting || isLeadsOff ? "" : "ms"}</span>
               </div>
             </div>
           </div>
@@ -1234,7 +1512,8 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <div className="vital-content">
               <span className="vital-label">HRV (RMSSD)</span>
               <div className="vital-val">
-                {isLeadsOff ? "--" : prediction.metrics.hrv_rmssd_ms} <span className="vital-unit">{isLeadsOff ? "" : "ms"}</span>
+                {isLiveWaiting || isLeadsOff ? "--" : prediction.metrics.hrv_rmssd_ms}{" "}
+                <span className="vital-unit">{isLiveWaiting || isLeadsOff ? "" : "ms"}</span>
               </div>
             </div>
           </div>
@@ -1244,9 +1523,13 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
             <div className="vital-content">
               <span className="vital-label">কার্ডিয়াক রিদম</span>
               <div className={`vital-val rhythm-val ${
-                isLeadsOff ? "text-warning" : (prediction.is_apnea ? "text-danger" : "text-safe")
+                isLiveWaiting
+                  ? "text-warning"
+                  : (isLeadsOff ? "text-warning" : (prediction.is_apnea ? "text-danger" : "text-safe"))
               }`}>
-                {prediction.metrics.rhythm_status}
+                {isLiveWaiting
+                  ? "⏳ ESP32 ডিভাইসের অপেক্ষায় (অসংযুক্ত)"
+                  : prediction.metrics.rhythm_status}
               </div>
             </div>
           </div>
