@@ -21,30 +21,34 @@ function getFallbackBenchmarkData(patientType = "apnea") {
       const inApnea = (idx >= 300 && idx <= 750);
       const ampScale = inApnea ? 0.50 : 1.15;
 
-      // P wave
-      const pIdx = idx - 16;
-      if (pIdx >= 0 && pIdx + 6 < numPoints) {
-        for (let k = 0; k < 6; k++) ecg[pIdx + k] += (0.18 * ampScale) * Math.sin((k / 6) * Math.PI);
-      }
-      // Q wave
-      const qIdx = idx - 3;
-      if (qIdx >= 0 && qIdx < numPoints) ecg[qIdx] -= 0.18 * ampScale;
-      // R wave (prominent peak)
-      if (idx >= 0 && idx < numPoints) ecg[idx] += 1.85 * ampScale;
-      // S wave
-      const sIdx = idx + 4;
-      if (sIdx >= 0 && sIdx < numPoints) ecg[sIdx] -= 0.45 * ampScale;
-      // T wave
-      const tIdx = idx + 16;
-      if (tIdx >= 0 && tIdx + 12 < numPoints) {
-        for (let k = 0; k < 12; k++) ecg[tIdx + k] += (0.35 * ampScale) * Math.sin((k / 12) * Math.PI);
+      const winStart = Math.max(0, idx - 25);
+      const winEnd = Math.min(numPoints, idx + 45);
+      for (let k = winStart; k < winEnd; k++) {
+        const tau = (k - idx) / 100.0; // Delta time from R-peak in seconds
+        // Distinct positive P-wave (~0.18 mV, at -160ms, sigma = 22ms)
+        const vP = 0.18 * ampScale * Math.exp(-0.5 * Math.pow((tau + 0.160) / 0.022, 2));
+        // Sharp negative Q-dip (~ -0.22 mV, at -28ms, sigma = 9ms)
+        const vQ = -0.22 * ampScale * Math.exp(-0.5 * Math.pow((tau + 0.028) / 0.009, 2));
+        // Tall prominent narrow R-peak (~1.68 mV, at 0ms, narrow sigma = 11ms)
+        const vR = 1.68 * ampScale * Math.exp(-0.5 * Math.pow(tau / 0.011, 2));
+        // Crisp negative S-wave dip (~ -0.40 mV, at +36ms, sigma = 11ms)
+        const vS = -0.40 * ampScale * Math.exp(-0.5 * Math.pow((tau - 0.036) / 0.011, 2));
+        // Smooth positive rounded T-wave (~0.38 mV, at +275ms, asymmetric)
+        // Guarantees flat isoelectric ST segment (0.0 mV) between +70ms and +160ms
+        const sigmaT = tau < 0.275 ? 0.038 : 0.032;
+        const vT = 0.38 * ampScale * Math.exp(-0.5 * Math.pow((tau - 0.275) / sigmaT, 2));
+        // Subtle U-wave (~0.018 mV, at +370ms)
+        const vU = 0.018 * ampScale * Math.exp(-0.5 * Math.pow((tau - 0.370) / 0.026, 2));
+
+        ecg[k] += vP + vQ + vR + vS + vT + vU;
       }
     }
-    // EDR and subtle baseline wander
+    // Synchronized EDR and subtle physiological baseline wander
     for (let i = 0; i < numPoints; i++) {
       const inApnea = (i >= 300 && i <= 750);
       edr[i] = inApnea ? 0.36 + 0.015 * Math.sin(2 * Math.PI * 0.05 * t[i]) : 1.0 + 0.20 * Math.sin(2 * Math.PI * 0.25 * t[i]);
-      ecg[i] += 0.03 * Math.sin(2 * Math.PI * 0.15 * t[i]);
+      ecg[i] = Math.round((ecg[i] + 0.012 * Math.sin(2 * Math.PI * 0.15 * t[i])) * 1000) / 1000;
+      edr[i] = Math.round(edr[i] * 1000) / 1000;
     }
 
     return {
@@ -114,16 +118,17 @@ function getFallbackBenchmarkData(patientType = "apnea") {
       const tLocal = 60.0 / Math.max(instHr, 40.0);
       const dt = phiWrapped * tLocal;
 
-      const vR = 1.72 * Math.exp(-0.5 * Math.pow(dt / 0.015, 2));
-      const vQ = -0.15 * Math.exp(-0.5 * Math.pow((dt + 0.036) / 0.010, 2));
-      const vS = -0.38 * Math.exp(-0.5 * Math.pow((dt - 0.038) / 0.014, 2));
-      const vP = 0.16 * Math.exp(-0.5 * Math.pow((dt + 0.165) / 0.026, 2));
-      const sigmaT = dt < 0.220 ? 0.054 : 0.042;
-      const vT = 0.32 * Math.exp(-0.5 * Math.pow((dt - 0.220) / sigmaT, 2));
-      const vU = 0.022 * Math.exp(-0.5 * Math.pow((dt - 0.335) / 0.028, 2));
+      // Clinical Lead II PQRST components
+      const vR = 1.68 * Math.exp(-0.5 * Math.pow(dt / 0.011, 2));
+      const vQ = -0.22 * Math.exp(-0.5 * Math.pow((dt + 0.028) / 0.009, 2));
+      const vS = -0.40 * Math.exp(-0.5 * Math.pow((dt - 0.036) / 0.011, 2));
+      const vP = 0.18 * Math.exp(-0.5 * Math.pow((dt + 0.160) / 0.022, 2));
+      const sigmaT = dt < 0.275 ? 0.038 : 0.032;
+      const vT = 0.38 * Math.exp(-0.5 * Math.pow((dt - 0.275) / sigmaT, 2));
+      const vU = 0.018 * Math.exp(-0.5 * Math.pow((dt - 0.370) / 0.026, 2));
 
-      const vResp = 0.028 * Math.sin(2.0 * Math.PI * 0.25 * ti - 0.5) + 0.009 * Math.sin(2.0 * Math.PI * 0.08 * ti);
-      const vMicro = 0.0045 * Math.sin(2.0 * Math.PI * 17.3 * ti + 1.2) + 0.0028 * Math.sin(2.0 * Math.PI * 31.7 * ti + 2.4);
+      const vResp = 0.005 * Math.sin(2.0 * Math.PI * 0.25 * ti - 0.5);
+      const vMicro = 0.0020 * Math.sin(2.0 * Math.PI * 17.3 * ti + 1.2) + 0.0012 * Math.sin(2.0 * Math.PI * 31.7 * ti + 2.4);
 
       ecg[i] = Math.round((vR + vQ + vS + vP + vT + vU + vResp + vMicro) * 1000) / 1000;
       edr[i] = Math.round((1.0 + 0.20 * Math.sin(2.0 * Math.PI * 0.25 * ti)) * 1000) / 1000;
@@ -204,15 +209,14 @@ function checkIsLeadsOff(samples) {
 
   // 1. Raw ADC scale (mean > 30 or max > 50) e.g. ESP32 analogRead (0-4095)
   if (mean > 30 || max > 50) {
-    if (min > 3600 || max < 150 || mean > 3700 || mean < 200) return true; // rail-saturated op-amp
-    if (ptp < 60.0 || std < 10.0) return true; // flatline ADC noise floor
-    if (ptp > 3700 && (min < 150 || max > 3950)) return true; // open floating input
+    if (samples.length >= 200 && ptp < 8.0 && std < 1.8) return true; // True dead flatline
+    if (mean > 4030 || mean < 40) return true; // Hard sustained rail saturation
+    return false;
   } else {
     // 2. Normalized / millivolt biopotential scale
-    if (ptp < 0.22 || std < 0.035) return true;
-    if (samples.length >= 300 && (ptp < 0.35 || std < 0.050)) return true;
+    if (ptp < 0.025 && std < 0.005) return true;
+    return false;
   }
-  return false;
 }
 
 // Real-time client-side ECG-Derived Respiration (EDR) extractor for Live ESP32
@@ -256,6 +260,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
   const [showXai, setShowXai] = useState(true);
   const [showPoincare, setShowPoincare] = useState(true);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [scopeViewMode, setScopeViewMode] = useState("clinical"); // 'clinical' (4-sec 25 mm/s sweep) or 'overview' (full buffer)
   const canvasRef = useRef(null);
   const poincareCanvasRef = useRef(null);
   const liveIntervalRef = useRef(null);
@@ -264,7 +269,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
 
   // Honest Leads-Off evaluation across Live and Custom modes
   const isLeadsOff = !isBreathHoldSim && (selectedPatient === "live" || selectedPatient === "custom")
-    ? Boolean(prediction?.is_leads_off || liveStatus?.is_leads_off || checkIsLeadsOff(signal))
+    ? Boolean(prediction?.is_leads_off || liveStatus?.is_leads_off)
     : false;
 
   const isLiveWaiting = selectedPatient === "live" && !isBreathHoldSim && (!liveStatus?.is_active || !signal || signal.length === 0);
@@ -351,8 +356,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       // 2. Hardware is streaming, but Electrodes Detached (Leads Off)
       const isLeadDisconnected = Boolean(
         data.is_leads_off ||
-        data.prediction?.is_leads_off ||
-        checkIsLeadsOff(data.samples)
+        data.prediction?.is_leads_off
       );
 
       if (isLeadDisconnected) {
@@ -657,8 +661,18 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       const pulse = 0.60 + 0.25 * Math.sin(elapsed * 3.5);
       const glowBlur = 5 + 5 * Math.sin(elapsed * 3.5);
 
-      const width = canvas.width;
-      const height = canvas.height;
+      const dpr = window.devicePixelRatio || 1;
+      const targetW = 800;
+      const targetH = 300;
+      if (canvas.width !== Math.round(targetW * dpr) || canvas.height !== Math.round(targetH * dpr)) {
+        canvas.width = Math.round(targetW * dpr);
+        canvas.height = Math.round(targetH * dpr);
+      }
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      const width = targetW;
+      const height = targetH;
 
       // Draw background grid (medical monitor style)
       ctx.fillStyle = "#0c151c";
@@ -729,6 +743,7 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       ctx.textAlign = "left";
       ctx.fillText("⏳ ডিভাইসের অপেক্ষায়... (Waiting for ESP32 Telemetry)", 14, ecgHeight + 22);
 
+      ctx.restore();
       animId = requestAnimationFrame(renderStandby);
     };
 
@@ -744,8 +759,20 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const width = canvas.width;
-    const height = canvas.height;
+
+    // High-DPI Retina Display Calibration: eliminates bilinear interpolation blur
+    const dpr = window.devicePixelRatio || 1;
+    const targetW = 800;
+    const targetH = 300;
+    if (canvas.width !== Math.round(targetW * dpr) || canvas.height !== Math.round(targetH * dpr)) {
+      canvas.width = Math.round(targetW * dpr);
+      canvas.height = Math.round(targetH * dpr);
+    }
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    const width = targetW;
+    const height = targetH;
 
     // Draw background grid (medical monitor style)
     ctx.fillStyle = "#0c151c";
@@ -771,16 +798,28 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       ctx.font = "14px system-ui";
       ctx.textAlign = "center";
       ctx.fillText(loading ? "⏳ সিগন্যাল লোড হচ্ছে..." : "সিগন্যাল ডেটা প্রস্তুত হচ্ছে...", width / 2, height / 2);
+      ctx.restore();
       return;
     }
 
+    // Sweep window selection: clinical standard (400 samples = 4.0s @ 25 mm/s) vs full overview
+    const isClinicalView = scopeViewMode === "clinical";
+    const sweepLimit = 400; // 4.0 seconds @ 100 Hz
+    const displaySignal = isClinicalView && signal.length > sweepLimit
+      ? signal.slice(-sweepLimit)
+      : signal;
+    const displayEdr = (edrSignal && edrSignal.length > 0)
+      ? (isClinicalView && edrSignal.length > sweepLimit ? edrSignal.slice(-sweepLimit) : edrSignal)
+      : [];
+
     const isLeadsOff = (selectedPatient === "live" || selectedPatient === "custom")
-      ? Boolean(prediction?.is_leads_off || checkIsLeadsOff(signal))
+      ? Boolean(prediction?.is_leads_off || liveStatus?.is_leads_off || (!displaySignal || displaySignal.length === 0 || displaySignal.every(v => v === 0)))
       : false;
-    const hasEdr = edrSignal && edrSignal.length > 0;
+    const hasEdr = displayEdr && displayEdr.length > 0;
     const ecgHeight = hasEdr ? height * 0.65 : height;
     const edrHeight = hasEdr ? height * 0.35 : 0;
-    const ecgStep = signal.length > 1 ? width / (signal.length - 1) : 0;
+    const N = displaySignal.length;
+    const ecgStep = N > 1 ? width / (N - 1) : 0;
     const ecgMidY = hasEdr ? ecgHeight * 0.52 : height * 0.5;
 
     // Draw ECG Trace
@@ -792,10 +831,10 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
           : (prediction?.is_apnea ? "#ff4d4f" : "#00ff88"));
 
     ctx.strokeStyle = traceColor;
-    ctx.lineWidth = 2.4;
+    ctx.lineWidth = 1.8;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-    ctx.shadowBlur = isLeadsOff ? 4 : 8;
+    ctx.shadowBlur = isLeadsOff ? 4 : 3;
     ctx.shadowColor = traceColor;
 
     if (isLeadsOff) {
@@ -813,12 +852,11 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       ctx.fillText("⚠️ ইলেকট্রোড বিচ্ছিন্ন (Leads Off / Pads Detached) — ইলেকট্রোড প্যাড সংযোগ পরীক্ষা করুন", width / 2, ecgMidY - 24);
     } else {
       // Clinical Lead II Oscilloscope Gain & Isoelectric ST Segment Preservation
-      const N = signal.length;
-      let minVal = signal[0];
-      let maxVal = signal[0];
+      let minVal = displaySignal[0];
+      let maxVal = displaySignal[0];
       let sum = 0;
       for (let i = 0; i < N; i++) {
-        const v = signal[i];
+        const v = displaySignal[i];
         if (v < minVal) minVal = v;
         if (v > maxVal) maxVal = v;
         sum += v;
@@ -833,36 +871,85 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       if (meanVal > 30.0) {
         // Raw ADC integer input: running baseline subtraction
         const prefix = new Float64Array(N + 1);
-        for (let i = 0; i < N; i++) prefix[i + 1] = prefix[i] + signal[i];
+        for (let i = 0; i < N; i++) prefix[i + 1] = prefix[i] + displaySignal[i];
         const halfWin = Math.min(42, Math.max(10, Math.floor(N / 22)));
         for (let i = 0; i < N; i++) {
           const start = Math.max(0, i - halfWin);
           const end = Math.min(N - 1, i + halfWin);
-          centered[i] = signal[i] - (prefix[end + 1] - prefix[start]) / (end - start + 1);
+          centered[i] = displaySignal[i] - (prefix[end + 1] - prefix[start]) / (end - start + 1);
         }
       } else {
-        // Standard Lead II millivolt biopotential: preserve isoelectric ST segment & PQRST anatomy
+        // Standard Lead II millivolt biopotential: align median baseline to exactly 0.0 mV
+        // Fast sampled median (51 points) avoids 60 FPS GC spikes
+        const stepM = Math.max(1, Math.floor(N / 51));
+        const sampleM = [];
+        for (let i = 0; i < N; i += stepM) sampleM.push(displaySignal[i]);
+        sampleM.sort((a, b) => a - b);
+        const medianVal = sampleM[Math.floor(sampleM.length / 2)];
         for (let i = 0; i < N; i++) {
-          centered[i] = signal[i] - meanVal;
+          centered[i] = displaySignal[i] - medianVal;
         }
       }
 
-      let maxC = 0.2;
-      let minC = -0.2;
+      let maxC = 0.3;
+      let minC = -0.3;
       for (let i = 0; i < N; i++) {
         if (centered[i] > maxC) maxC = centered[i];
         if (centered[i] < minC) minC = centered[i];
       }
 
-      const scalePos = upperSpace / maxC;
-      const scaleNeg = lowerSpace / Math.abs(minC);
-      const ecgScaleY = Math.min(scalePos, scaleNeg) * 0.84;
+      // Standard clinical Lead II gain: calibrate so R-peak (~1.68 mV) fills ~74% of upper space
+      const ecgScaleY = (upperSpace * 0.74) / Math.max(1.4, maxC);
+
+      // Subtle dashed isoelectric baseline guide line on ecgMidY
+      ctx.beginPath();
+      ctx.setLineDash([3, 6]);
+      ctx.moveTo(0, ecgMidY);
+      ctx.lineTo(width, ecgMidY);
+      ctx.strokeStyle = "rgba(0, 255, 136, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Standard Lead II 1 mV calibration pulse box at start of oscilloscope
+      const calibWidth = 14;
+      const calibHeight = 1.0 * ecgScaleY; // 1.0 mV calibration pulse
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(0, 255, 136, 0.45)";
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(8, ecgMidY);
+      ctx.lineTo(12, ecgMidY);
+      ctx.lineTo(12, ecgMidY - calibHeight);
+      ctx.lineTo(12 + calibWidth, ecgMidY - calibHeight);
+      ctx.lineTo(12 + calibWidth, ecgMidY);
+      ctx.lineTo(16 + calibWidth, ecgMidY);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(0, 255, 136, 0.55)";
+      ctx.font = "bold 9.5px system-ui";
+      ctx.textAlign = "left";
+      ctx.fillText("1 mV", 14 + calibWidth, ecgMidY - calibHeight + 3);
+
+      // Clinical oscilloscope Lead II header label
+      ctx.fillStyle = "rgba(255, 255, 255, 0.70)";
+      ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "left";
+      const viewHeader = isClinicalView ? "Lead II • 1 mV / 10 mm • 25 mm/s • ৪-সেকেন্ড ক্লিনিক্যাল P-Q-R-S-T ভিউ" : "Lead II • সম্পূর্ণ ওভারভিউ";
+      ctx.fillText(viewHeader, 12, 18);
+
+      // Draw ECG trace with crisp clinical stroke & subtle phosphor glow
+      ctx.strokeStyle = traceColor;
+      ctx.lineWidth = 1.8;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.shadowBlur = 3;
+      ctx.shadowColor = traceColor;
 
       ctx.beginPath();
       for (let i = 0; i < N; i++) {
         const x = i * ecgStep;
         let y = ecgMidY - centered[i] * ecgScaleY;
-        // Soft-knee smooth tanh boundary clamping prevents harsh square-wave plateaus
+        // Soft-knee smooth boundary damping prevents clipping
         if (y < 12) {
           y = 12 - 4 * Math.tanh((12 - y) / 4);
         } else if (y > ecgHeight - 12) {
@@ -872,12 +959,101 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Clinical P-Q-R-S-T Component Markers on the prominent Lead II heartbeat
+      if (N >= 60) {
+        const rThresh = Math.max(0.65, 0.40 * maxC);
+        const rCandidates = [];
+        for (let i = 25; i < N - 45; i++) {
+          if (centered[i] >= rThresh && centered[i] >= centered[i - 1] && centered[i] >= centered[i + 1]) {
+            if (rCandidates.length === 0 || (i - rCandidates[rCandidates.length - 1]) >= 35) {
+              rCandidates.push(i);
+            }
+          }
+        }
+
+        // Select the primary beat to annotate
+        const pR = rCandidates.length >= 2 ? (rCandidates[0] > 30 ? rCandidates[0] : rCandidates[1]) : (rCandidates[0] || null);
+        if (pR !== null && pR >= 22 && pR < N - 40) {
+          const xR = pR * ecgStep;
+          const yR = ecgMidY - centered[pR] * ecgScaleY;
+
+          // Q-dip: minimum in [pR - 5, pR]
+          let pQ = pR - 1;
+          let minQ = centered[pQ];
+          for (let k = Math.max(0, pR - 5); k < pR; k++) {
+            if (centered[k] < minQ) { minQ = centered[k]; pQ = k; }
+          }
+          const xQ = pQ * ecgStep;
+          const yQ = ecgMidY - centered[pQ] * ecgScaleY;
+
+          // S-dip: minimum in [pR + 1, pR + 7]
+          let pS = pR + 1;
+          let minS = centered[pS];
+          for (let k = pR + 1; k <= Math.min(N - 1, pR + 6); k++) {
+            if (centered[k] < minS) { minS = centered[k]; pS = k; }
+          }
+          const xS = pS * ecgStep;
+          const yS = ecgMidY - centered[pS] * ecgScaleY;
+
+          // P-peak: maximum in [pR - 22, pR - 10]
+          let pP = Math.max(0, pR - 16);
+          let maxP = centered[pP];
+          for (let k = Math.max(0, pR - 22); k <= Math.max(0, pR - 10); k++) {
+            if (centered[k] > maxP) { maxP = centered[k]; pP = k; }
+          }
+          const xP = pP * ecgStep;
+          const yP = ecgMidY - centered[pP] * ecgScaleY;
+
+          // T-peak: maximum in [pR + 18, pR + 38]
+          let pT = Math.min(N - 1, pR + 28);
+          let maxT = centered[pT];
+          for (let k = Math.min(N - 1, pR + 18); k <= Math.min(N - 1, pR + 38); k++) {
+            if (centered[k] > maxT) { maxT = centered[k]; pT = k; }
+          }
+          const xT = pT * ecgStep;
+          const yT = ecgMidY - centered[pT] * ecgScaleY;
+
+          // Draw clinical letter badges
+          ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
+          ctx.textAlign = "center";
+
+          // P badge (+0.18 mV)
+          ctx.fillStyle = "#00d2ff";
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = "#00d2ff";
+          ctx.fillText("P", xP, yP - 8);
+
+          // Q badge (-0.22 mV)
+          ctx.fillStyle = "#fbbf24";
+          ctx.shadowColor = "#fbbf24";
+          ctx.fillText("Q", xQ, yQ + 14);
+
+          // R badge (+1.68 mV)
+          ctx.fillStyle = "#ffffff";
+          ctx.shadowColor = "#ffffff";
+          ctx.fillText("R", xR, yR - 10);
+
+          // S badge (-0.40 mV)
+          ctx.fillStyle = "#fbbf24";
+          ctx.shadowColor = "#fbbf24";
+          ctx.fillText("S", xS, yS + 14);
+
+          // T badge (+0.38 mV)
+          ctx.fillStyle = "#00ff88";
+          ctx.shadowColor = "#00ff88";
+          ctx.fillText("T", xT, yT - 8);
+
+          ctx.shadowBlur = 0;
+        }
+      }
     }
 
     // Draw EDR Trace (if available)
-    if (edrSignal && edrSignal.length > 0) {
+    if (displayEdr && displayEdr.length > 0) {
       const edrColor = isLeadsOff ? "#f59e0b" : (isApneaNow ? "#ff4d4f" : "#00d2ff");
-      const edrStep = edrSignal.length > 1 ? width / (edrSignal.length - 1) : 0;
+      const edrStep = displayEdr.length > 1 ? width / (displayEdr.length - 1) : 0;
       const edrMidY = ecgHeight + (edrHeight / 2);
 
       // Draw EDR divider line
@@ -900,28 +1076,28 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
 
       // Draw actual EDR signal
       ctx.strokeStyle = edrColor;
-      ctx.lineWidth = 2.2;
-      ctx.shadowBlur = 8;
+      ctx.lineWidth = 2.0;
+      ctx.shadowBlur = 6;
       ctx.shadowColor = edrColor;
 
       ctx.beginPath();
-      for (let i = 0; i < edrSignal.length; i++) {
+      for (let i = 0; i < displayEdr.length; i++) {
         const x = i * edrStep;
         let y;
         if (isLeadsOff) {
           y = edrMidY;
         } else if (isApneaNow) {
           // Suppressed flatline during apnea
-          y = edrMidY + (edrHeight * 0.20) - (edrSignal[i] - 0.36) * (edrHeight * 0.4);
+          y = edrMidY + (edrHeight * 0.20) - (displayEdr[i] - 0.36) * (edrHeight * 0.4);
         } else {
           // Sinusoidal normal breathing
-          y = edrMidY - (edrSignal[i] - 1.0) * (edrHeight * 1.5);
+          y = edrMidY - (displayEdr[i] - 1.0) * (edrHeight * 1.5);
         }
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
-      
+
       // Dynamic EDR Status Text Badge on Canvas
       ctx.fillStyle = edrColor;
       ctx.font = "bold 11.5px system-ui";
@@ -936,8 +1112,9 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
       }
     }
 
+    ctx.restore();
     ctx.shadowBlur = 0;
-  }, [signal, edrSignal, prediction, selectedPatient, isBreathHoldSim, liveStatus, isLiveWaiting]);
+  }, [signal, edrSignal, prediction, selectedPatient, isBreathHoldSim, liveStatus, isLiveWaiting, scopeViewMode]);
 
   // Draw 2D Poincaré Scatter Plot & Autonomic HRV Ellipse
   useEffect(() => {
@@ -1289,14 +1466,36 @@ export default function SleepApneaMonitor({ onDiscussWithAi, onOpenQr }) {
                   )
                 )}
               </div>
-              <div className="icu-window-info">
-                {selectedPatient === "live"
-                  ? (isBreathHoldSim
-                      ? "সিমুলেশন উইন্ডো: ১০ সেকেন্ড (১০০০ স্যাম্পল)"
-                      : (liveStatus?.is_active && signal.length > 0
-                          ? `লাইভ উইন্ডো: ${Math.round(signal.length / 100)} সেকেন্ড (${signal.length} স্যাম্পল)`
-                          : "লাইভ উইন্ডো: ESP32 অসংযুক্ত (০ স্যাম্পল)"))
-                  : `উইন্ডো: ${Math.round(signal.length / 100) || 10} সেকেন্ড (${(signal.length || 1000).toLocaleString("bn-BD")} স্যাম্পল)`}
+              <div className="icu-scope-right-controls">
+                <div className="icu-scope-view-toggle">
+                  <button
+                    type="button"
+                    className={`icu-scope-btn ${scopeViewMode === "clinical" ? "active" : ""}`}
+                    onClick={() => setScopeViewMode("clinical")}
+                    title="৪-সেকেন্ড স্পষ্ট P-Q-R-S-T ভিউ (২৫ মিমি/সেকেন্ড ক্লিনিক্যাল স্ট্যান্ডার্ড)"
+                  >
+                    🔬 ৪-সেক P-Q-R-S-T ভিউ
+                  </button>
+                  <button
+                    type="button"
+                    className={`icu-scope-btn ${scopeViewMode === "overview" ? "active" : ""}`}
+                    onClick={() => setScopeViewMode("overview")}
+                    title="সম্পূর্ণ উইন্ডো ওভারভিউ"
+                  >
+                    🌐 সম্পূর্ণ ওভারভিউ
+                  </button>
+                </div>
+                <div className="icu-window-info">
+                  {scopeViewMode === "clinical"
+                    ? "ভিউ: ৪.০ সেকেন্ড (৪০০ স্যাম্পল @ ২৫ মিমি/সে)"
+                    : (selectedPatient === "live"
+                        ? (isBreathHoldSim
+                            ? "সিমুলেশন উইন্ডো: ১০ সেকেন্ড (১০০০ স্যাম্পল)"
+                            : (liveStatus?.is_active && signal.length > 0
+                                ? `লাইভ উইন্ডো: ${Math.round(signal.length / 100)} সেকেন্ড (${signal.length} স্যাম্পল)`
+                                : "লাইভ উইন্ডো: ESP32 অসংযুক্ত (০ স্যাম্পল)"))
+                        : `উইন্ডো: ${Math.round(signal.length / 100) || 10} সেকেন্ড (${(signal.length || 1000).toLocaleString("bn-BD")} স্যাম্পল)`)}
+                </div>
               </div>
             </div>
 
